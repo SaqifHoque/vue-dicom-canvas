@@ -1,0 +1,41 @@
+# Dependencies and build output
+node_modules/
+dist/
+example-dist/
+.test-dist/
+coverage/
+.vite/
+*.tsbuildinfo
+*.tgz
+
+# Workers copied by the demo build
+examples/basic/public/assets/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.local
+
+# Logs, editor settings, and OS files
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local planning and browser-test artifacts
+.branch-queue/
+WORK_QUEUE.md
+playwright-report/
+test-results/
+
+# Local studies and archives; only generated demo DICOM files are tracked
+*.dcm
+*.dicom
+*.zip
+!examples/basic/public/sample.dcm
+!examples/basic/public/series/slice-*.dcm
