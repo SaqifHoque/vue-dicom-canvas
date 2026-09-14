@@ -4,7 +4,7 @@ A Vue 3 DICOM viewer with built-in slice navigation, customizable drawing tools,
 
 Vue DICOM Canvas wraps [DWV](https://github.com/ivmartel/dwv) in a typed Vue component. Controls sit inside the image, and a gear icon shows or hides the settings panel. It supports local files, image series, and remote DICOM URLs.
 
-> **Repository status:** the initial `main` baseline contains this README and `.gitignore`. The package implementation is being introduced through the first pull request. The commands and API below apply to that implementation branch and to `main` after it is merged. No npm publication is implied.
+> **Development status:** this repository contains the initial package implementation. Build and test it locally using the instructions below; no npm publication is implied.
 
 ## Features
 
@@ -19,12 +19,11 @@ Vue DICOM Canvas wraps [DWV](https://github.com/ivmartel/dwv) in a typed Vue com
 
 ## Run locally
 
-Clone the repository and check out the implementation branch while the first PR is pending:
+Clone the repository and install its locked dependencies:
 
 ```sh
 git clone https://github.com/SaqifHoque/vue-dicom-canvas.git
 cd vue-dicom-canvas
-git switch feat/01-package-foundation
 npm ci
 npm run dev
 ```
@@ -150,3 +149,5 @@ Vue and DWV remain peer dependencies. The imaging engine is loaded when the view
 This is a viewer building block, not a certified medical device. Validate it for your intended use. Local inputs have count and size limits; enforce remote download limits and access controls in your backend. Filename and MIME checks are convenience filters, not DICOM validation. Rapid source replacement and decoder behavior also depend on DWV.
 
 The wrapper is currently marked `UNLICENSED`; a project license must be selected before third-party reuse is offered. The bundled DWV workers originate from DWV 0.36.4 and carry GPL-3.0 licensing. Bundling them does not change the wrapper's declared license. Review both before redistribution.
+
+See [SECURITY.md](SECURITY.md) for input and deployment boundaries, [CHANGELOG.md](CHANGELOG.md) for implementation history, and [workers/NOTICE.md](workers/NOTICE.md) for worker provenance.
