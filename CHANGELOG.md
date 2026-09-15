@@ -3,6 +3,11 @@
 ## Unreleased — Load lifecycle
 
 - Remove Dependabot configuration; dependency upgrades are now prepared manually.
+- Associate DWV events with the active data ID so replaced loads cannot overwrite current state.
+- Make `load()` resolve with a typed terminal result, including superseded and empty requests.
+- Handle reset and DWV aborts, timeouts, initialization failures, and component teardown consistently.
+- Add an exposed `retry()` method, retry slot callback, and default retry control.
+- Add lifecycle tests for stale events, cancellation, timeouts, and one-time settlement.
 
 ## Unreleased — Vue DICOM Canvas foundation
 
