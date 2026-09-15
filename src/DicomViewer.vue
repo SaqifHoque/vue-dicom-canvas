@@ -57,6 +57,7 @@ import { exportGroups, importGroups, type DicomAnnotations } from './annotation-
 import type { DwvModule } from './dwv-loader'
 import { loadDwv } from './dwv-loader'
 import { isZipFile } from './file-utils'
+import { LoadSessionController, type DicomLoadResult, type DicomLoadSession } from './load-session'
 import { normaliseDicomSource } from './source-utils'
 import type { DicomSource, DicomViewerProps, DicomViewerStatus } from './types'
 
@@ -211,7 +212,7 @@ function restoreProvidedAnnotations() {
 
 let resizeObserver: ResizeObserver | null = null
 let isMounted = false
-let loadGeneration = 0
+const loadSessions = new LoadSessionController()
 
 const toError = (value: unknown): Error => {
     if (value instanceof Error) return value
@@ -228,15 +229,18 @@ const toError = (value: unknown): Error => {
 }
 
 const onLoadStart = (event: unknown) => {
+    if (!loadSessions.owns(event)) return
     status.value = 'loading'
     error.value = null
     emit('load-start', event)
 }
 
-const onLoadProgress = (event: unknown) => emit('load-progress', event)
+const onLoadProgress = (event: unknown) => {
+    if (loadSessions.owns(event)) emit('load-progress', event)
+}
 
 const onLoadEnd = (event: unknown) => {
-    if (status.value === 'error') return
+    if (!loadSessions.owns(event)) return
     status.value = 'ready'
     if (props.autoFit) app?.fitToContainer()
     syncSlice()
@@ -244,17 +248,19 @@ const onLoadEnd = (event: unknown) => {
     applyTool()
     restoreProvidedAnnotations()
     emit('loaded', event)
+    loadSessions.settle({ status: 'loaded', event })
 }
 
 const onLoadError = (event: unknown) => {
+    if (!loadSessions.owns(event)) return
     const loadError = toError(event)
     status.value = 'error'
     error.value = loadError
     emit('error', loadError, event)
+    loadSessions.settle({ status: 'error', error: loadError, event })
 }
 
-const reset = (): void => {
-    loadGeneration += 1
+const clearViewer = (): void => {
     if (app) {
         app.abortAllLoads()
         app.reset()
@@ -270,12 +276,21 @@ const reset = (): void => {
     error.value = null
 }
 
-const load = async (source: DicomSource = props.source): Promise<void> => {
-    if (!app) return
+const reset = (): void => {
+    loadSessions.cancel({ status: 'aborted', reason: 'reset' })
+    clearViewer()
+}
 
-    reset()
-    const generation = loadGeneration
-    if (!source) return
+const load = async (source: DicomSource = props.source): Promise<DicomLoadResult> => {
+    if (!app) {
+        const loadError = new Error('The DICOM viewer is not ready yet.')
+        return { status: 'error', error: loadError }
+    }
+
+    loadSessions.cancel({ status: 'superseded' })
+    clearViewer()
+    if (!source) return { status: 'empty' }
+    const session: DicomLoadSession = loadSessions.begin()
 
     await nextTick()
 
@@ -286,21 +301,27 @@ const load = async (source: DicomSource = props.source): Promise<void> => {
             maxTotalFileSizeBytes: props.maxTotalFileSizeBytes,
             allowInsecureHttp: props.allowInsecureHttp
         })
-        if (!normalisedSource) return
+        if (!normalisedSource) {
+            loadSessions.cancel({ status: 'superseded' })
+            return { status: 'empty' }
+        }
 
         if (normalisedSource.kind === 'files' && !props.allowArchives) {
             const archiveResults = await Promise.all(normalisedSource.values.map(isZipFile))
             if (archiveResults.some(Boolean)) throw new TypeError('Archive input is disabled. Pass allow-archives only for trusted ZIP files.')
         }
 
-        if (!isMounted || generation !== loadGeneration || !app) return
+        if (!isMounted || !loadSessions.isActive(session) || !app) return session.result
 
         hasSource.value = true
-        if (normalisedSource.kind === 'files') app.loadFiles(normalisedSource.values)
-        else app.loadURLs(normalisedSource.values)
+        const dataId = normalisedSource.kind === 'files'
+            ? app.loadFiles(normalisedSource.values)
+            : app.loadURLs(normalisedSource.values)
+        loadSessions.bind(session, dataId)
     } catch (value) {
-        if (isMounted && generation === loadGeneration) onLoadError(value)
+        if (isMounted && loadSessions.isActive(session)) onLoadError(value)
     }
+    return session.result
 }
 
 const initialise = async (): Promise<void> => {
@@ -353,6 +374,7 @@ watch(() => props.annotations, value => {
 
 onBeforeUnmount(() => {
     isMounted = false
+    loadSessions.cancel({ status: 'aborted', reason: 'reset' })
     resizeObserver?.disconnect()
     if (app) {
         app.removeEventListener('loadstart', onLoadStart)

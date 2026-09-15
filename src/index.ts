@@ -5,3 +5,4 @@ export type { DicomSourcePolicy, NormalisedDicomSource } from './source-utils'
 export type { DicomSource, DicomViewerProps, DicomViewerStatus } from './types'
 
 export type { DicomAnnotations } from './annotation-utils'
+export type { DicomLoadResult } from './load-session'
