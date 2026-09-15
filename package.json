@@ -1,0 +1,80 @@
+{
+    "name": "@ys-reading/vue-dicom-canvas",
+    "version": "2.0.0",
+    "description": "A Vue 3 DICOM viewer with built-in slice navigation, customizable drawing tools, collapsible controls, and annotation export and restore for database integration.",
+    "type": "module",
+    "sideEffects": [
+        "**/*.css"
+    ],
+    "files": [
+        "dist",
+        "workers",
+        "scripts",
+        "README.md",
+        "SECURITY.md",
+        "CHANGELOG.md",
+        "examples/basic/*.vue",
+        "examples/basic/*.ts",
+        "examples/basic/*.json",
+        "examples/basic/*.html",
+        "examples/basic/public/sample.dcm",
+        "examples/basic/public/series/*.dcm"
+    ],
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "require": "./dist/index.cjs"
+        },
+        "./style.css": "./dist/style.css",
+        "./workers/*": "./workers/*"
+    },
+    "scripts": {
+        "build": "vue-tsc --noEmit && vite build && vue-tsc -p tsconfig.build.json",
+        "typecheck": "vue-tsc --noEmit",
+        "test": "esbuild tests/*.test.ts --bundle --platform=node --format=esm --external:dwv --external:vue --outdir=.test-dist && node --test .test-dist/file-utils.test.js .test-dist/source-utils.test.js .test-dist/security.test.js .test-dist/annotation-utils.test.js",
+        "audit": "npm audit --audit-level=high",
+        "verify:workers": "node scripts/verify-workers.mjs",
+        "check": "npm run test && npm run build && npm run verify:workers",
+        "prepack": "npm run check",
+        "dev": "npm run build && vite --config examples/basic/vite.config.ts",
+        "build:example": "npm run build && vue-tsc --noEmit -p examples/basic/tsconfig.json && vite build --config examples/basic/vite.config.ts",
+        "preview:example": "vite preview --config examples/basic/vite.config.ts"
+    },
+    "peerDependencies": {
+        "dwv": ">=0.36.4 <0.37.0",
+        "vue": ">=3.4.0 <4.0.0"
+    },
+    "devDependencies": {
+        "@types/node": "^22.10.0",
+        "@vitejs/plugin-vue": "^5.2.0",
+        "dwv": "^0.36.4",
+        "esbuild": "^0.25.0",
+        "typescript": "^5.7.0",
+        "vite": "^6.1.0",
+        "vue": "^3.5.0",
+        "vue-tsc": "^2.2.0"
+    },
+    "keywords": [
+        "dicom",
+        "dwv",
+        "medical-imaging",
+        "vue",
+        "vue3"
+    ],
+    "license": "UNLICENSED",
+    "engines": {
+        "node": ">=18.0.0"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/SaqifHoque/vue-dicom-canvas.git"
+    },
+    "homepage": "https://github.com/SaqifHoque/vue-dicom-canvas#readme",
+    "bugs": {
+        "url": "https://github.com/SaqifHoque/vue-dicom-canvas/issues"
+    }
+}
