@@ -14,7 +14,12 @@
         </div>
 
         <div v-else-if="status === 'error'" class="dicom-viewer__overlay dicom-viewer__error" role="alert">
-            <slot name="error" :error="error">{{ error?.message }}</slot>
+            <slot name="error" :error="error" :retry="retry">
+                <div class="dicom-viewer__error-content">
+                    <span>{{ error?.message }}</span>
+                    <button v-if="canRetry" type="button" @click="retry">Retry</button>
+                </div>
+            </slot>
         </div>
 
         <div v-else-if="!hasSource" class="dicom-viewer__overlay">
@@ -89,6 +94,8 @@ const emit = defineEmits<{
     'update:settingsOpen': [open: boolean]
     'load-start': [event: unknown]
     'load-progress': [event: unknown]
+    'load-abort': [reason: 'reset' | 'dwv', event?: unknown]
+    'load-timeout': [error: Error, event?: unknown]
     loaded: [event: unknown]
     error: [error: Error, event?: unknown]
 }>()
@@ -98,6 +105,7 @@ const container = ref<HTMLElement | null>(null)
 const status = ref<DicomViewerStatus>('idle')
 const error = ref<Error | null>(null)
 const hasSource = ref(false)
+const canRetry = ref(false)
 const viewerStyle = computed(() => ({
     width: typeof props.width === 'number' ? `${props.width}px` : props.width,
     height: typeof props.height === 'number' ? `${props.height}px` : props.height,
@@ -213,6 +221,7 @@ function restoreProvidedAnnotations() {
 let resizeObserver: ResizeObserver | null = null
 let isMounted = false
 const loadSessions = new LoadSessionController()
+let lastSource: DicomSource = null
 
 const toError = (value: unknown): Error => {
     if (value instanceof Error) return value
@@ -254,10 +263,31 @@ const onLoadEnd = (event: unknown) => {
 const onLoadError = (event: unknown) => {
     if (!loadSessions.owns(event)) return
     const loadError = toError(event)
+    reportError(loadError, event)
+    loadSessions.settle({ status: 'error', error: loadError, event })
+}
+
+const reportError = (loadError: Error, event?: unknown) => {
     status.value = 'error'
     error.value = loadError
+    canRetry.value = lastSource !== null
     emit('error', loadError, event)
-    loadSessions.settle({ status: 'error', error: loadError, event })
+}
+
+const onLoadAbort = (event: unknown) => {
+    if (!loadSessions.owns(event)) return
+    status.value = 'idle'
+    hasSource.value = false
+    emit('load-abort', 'dwv', event)
+    loadSessions.settle({ status: 'aborted', reason: 'dwv', event })
+}
+
+const onLoadTimeout = (event: unknown) => {
+    if (!loadSessions.owns(event)) return
+    const loadError = new Error('The DICOM load timed out.')
+    reportError(loadError, event)
+    emit('load-timeout', loadError, event)
+    loadSessions.settle({ status: 'timeout', error: loadError, event })
 }
 
 const clearViewer = (): void => {
@@ -270,6 +300,7 @@ const clearViewer = (): void => {
     historyCeiling.value = 0
     lastEmitted = ''
     hasSource.value = false
+    canRetry.value = false
     slice.value = 1
     sliceCount.value = 1
     status.value = 'idle'
@@ -277,7 +308,7 @@ const clearViewer = (): void => {
 }
 
 const reset = (): void => {
-    loadSessions.cancel({ status: 'aborted', reason: 'reset' })
+    if (loadSessions.cancel({ status: 'aborted', reason: 'reset' })) emit('load-abort', 'reset')
     clearViewer()
 }
 
@@ -290,6 +321,7 @@ const load = async (source: DicomSource = props.source): Promise<DicomLoadResult
     loadSessions.cancel({ status: 'superseded' })
     clearViewer()
     if (!source) return { status: 'empty' }
+    lastSource = source
     const session: DicomLoadSession = loadSessions.begin()
 
     await nextTick()
@@ -317,12 +349,15 @@ const load = async (source: DicomSource = props.source): Promise<DicomLoadResult
         const dataId = normalisedSource.kind === 'files'
             ? app.loadFiles(normalisedSource.values)
             : app.loadURLs(normalisedSource.values)
+        if (dataId === '-1') throw new Error('DWV could not start the DICOM load.')
         loadSessions.bind(session, dataId)
     } catch (value) {
         if (isMounted && loadSessions.isActive(session)) onLoadError(value)
     }
     return session.result
 }
+
+const retry = (): Promise<DicomLoadResult> => load(lastSource)
 
 const initialise = async (): Promise<void> => {
     dwv = await loadDwv()
@@ -340,6 +375,8 @@ const initialise = async (): Promise<void> => {
     app.addEventListener('undoadd', syncHistory)
     for (const event of annotationEvents) app.addEventListener(event, annotationsChanged)
     app.addEventListener('error', onLoadError)
+    app.addEventListener('abort', onLoadAbort)
+    app.addEventListener('timeout', onLoadTimeout)
 
     if (typeof ResizeObserver !== 'undefined' && container.value) {
         resizeObserver = new ResizeObserver(() => {
@@ -355,7 +392,7 @@ onMounted(async () => {
         await initialise()
         if (isMounted) await load()
     } catch (value) {
-        onLoadError(value)
+        reportError(toError(value), value)
     }
 })
 
@@ -374,7 +411,7 @@ watch(() => props.annotations, value => {
 
 onBeforeUnmount(() => {
     isMounted = false
-    loadSessions.cancel({ status: 'aborted', reason: 'reset' })
+    loadSessions.cancel({ status: 'aborted', reason: 'unmount' })
     resizeObserver?.disconnect()
     if (app) {
         app.removeEventListener('loadstart', onLoadStart)
@@ -384,6 +421,8 @@ onBeforeUnmount(() => {
         app.removeEventListener('undoadd', syncHistory)
         for (const event of annotationEvents) app.removeEventListener(event, annotationsChanged)
         app.removeEventListener('error', onLoadError)
+        app.removeEventListener('abort', onLoadAbort)
+        app.removeEventListener('timeout', onLoadTimeout)
         app.abortAllLoads()
         app.reset()
     }
@@ -392,6 +431,7 @@ onBeforeUnmount(() => {
 
 defineExpose({
     load,
+    retry,
     reset,
     fitToContainer: () => app?.fitToContainer(),
     getApp: () => app,
@@ -430,6 +470,9 @@ defineExpose({
 .dicom-viewer__error {
     color: #fecaca;
 }
+
+.dicom-viewer__error-content { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.dicom-viewer__error-content button { border: 1px solid currentColor; border-radius: 5px; padding: 6px 12px; background: #450a0a; color: inherit; cursor: pointer; }
 .dicom-viewer__toggle { position: absolute; top: 10px; right: 10px; z-index: 5; display: grid; place-items: center; width: 40px; height: 40px; }
 .dicom-viewer__toggle[aria-expanded=true] { color: #67e8f9; border-color: #67e8f9; }
 .dicom-viewer__settings { position: absolute; bottom: 12px; left: 12px; right: 12px; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px; border-radius: 8px; background: rgb(15 23 42 / 88%); color: white; font: 13px system-ui, sans-serif; max-height: 60%; overflow: auto; }

@@ -1,7 +1,7 @@
 export type DicomLoadResult =
     | { status: 'loaded'; event: unknown }
     | { status: 'error'; error: Error; event?: unknown }
-    | { status: 'aborted'; reason: 'reset' | 'dwv'; event?: unknown }
+    | { status: 'aborted'; reason: 'reset' | 'dwv' | 'unmount'; event?: unknown }
     | { status: 'timeout'; error: Error; event?: unknown }
     | { status: 'empty' }
     | { status: 'superseded' }
