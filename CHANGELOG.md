@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — Load lifecycle
+
+- Remove Dependabot configuration; dependency upgrades are now prepared manually.
+
 ## Unreleased — Vue DICOM Canvas foundation
 
 - Rename the package to `@ys-reading/vue-dicom-canvas` and add repository metadata.

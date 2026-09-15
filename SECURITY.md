@@ -31,6 +31,6 @@ npm pack --dry-run
 npm run verify:workers
 ```
 
-CI repeats these checks for pushes and pull requests, and Dependabot checks npm and GitHub Actions dependencies weekly.
+CI repeats these checks for pushes and pull requests. Dependency upgrades are reviewed and prepared manually.
 
 The worker files in this release come from `dwv@0.36.4` under DWV's GPL-3.0 license. Their checksums are recorded in `workers/SHA256SUMS`; verification also compares them byte-for-byte with the installed DWV release so dependency updates cannot silently leave stale workers behind.
