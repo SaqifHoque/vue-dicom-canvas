@@ -16,6 +16,7 @@ Until a dedicated security contact is configured, do not publish sensitive detai
 - Remote DICOM access follows browser same-origin and CORS rules. Never place access tokens, credentials, or PHI in public URLs.
 - Decoder workers must be served from the application's own trusted origin. Do not accept worker locations from end users.
 - ZIP input is disabled by default to reduce decompression-bomb risk. Enabling it is appropriate only for trusted, size-limited archives.
+- Annotation JSON is treated as untrusted input. Snapshot size, group, mark, and text limits are enforced before DWV parsing, and references must match the loaded study before existing marks are changed.
 - Consumers should set a restrictive Content Security Policy and keep `vue`, `dwv`, and this package updated.
 - Applications handling PHI remain responsible for authentication, authorization, audit logging, retention, transport encryption, and applicable regulatory requirements.
 

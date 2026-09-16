@@ -58,7 +58,11 @@ let nextViewerId = 0
 <script setup lang="ts">
 import type { App } from 'dwv'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { exportGroups, importGroups, type DicomAnnotations } from './annotation-utils'
+import {
+    exportGroups,
+    restoreAnnotationSnapshot,
+    type DicomAnnotations
+} from './annotation-utils'
 import type { DwvModule } from './dwv-loader'
 import { loadDwv } from './dwv-loader'
 import { isZipFile } from './file-utils'
@@ -185,33 +189,47 @@ function annotationsChanged() {
 }
 function setAnnotations(snapshot: DicomAnnotations | null): void {
     if (!app || !dwv || status.value !== 'ready') throw new Error('Load a DICOM image before setting annotations.')
-    const groups = importGroups(snapshot ?? { version: 1, groups: [] }, dwv)
-    const layer = app.getActiveLayerGroup()?.getBaseViewLayer()
+    const currentApp = app
+    const currentDwv = dwv
+    const layer = currentApp.getActiveLayerGroup()?.getBaseViewLayer()
     const view = layer?.getViewController()
     if (!layer || !view) throw new Error('No image is available for annotations.')
-    for (const group of groups) for (const mark of group.getList()) {
-        if (!view.includesImageUid(mark.referencedSopInstanceUID)) throw new Error('Annotations belong to a different DICOM image or series.')
-        mark.setViewController(view)
+    const studyInstanceUIDs = new Set<string>()
+    let frameCount = 1
+    for (const id of currentApp.getDataIds()) {
+        const data = currentApp.getData(id)
+        if (!data?.image) continue
+        const meta = currentDwv.getAsSimpleElements(data.meta) as Record<string, unknown>
+        if (typeof meta.StudyInstanceUID === 'string') studyInstanceUIDs.add(meta.StudyInstanceUID)
+        const frames = Number(meta.NumberOfFrames ?? 1)
+        if (Number.isInteger(frames) && frames > frameCount) frameCount = frames
     }
-    restoring = true
-    try {
-        for (const id of app.getDataIds()) {
-            const group = app.getData(id)?.annotationGroup
-            if (group) for (const mark of [...group.getList()]) group.remove(mark.trackingUid)
-        }
-        const target = app.getDataIds().map(id => app?.getData(id)?.annotationGroup).find(Boolean)
-        if (target) {
-            for (const group of groups) for (const mark of group.getList()) target.add(mark)
-        } else if (groups.length) {
-            const data = app.createAnnotationData(layer.getDataId())
-            for (const group of groups) for (const mark of group.getList()) data.annotationGroup?.add(mark)
-            app.addAndRenderAnnotationData(data, containerId, layer.getDataId())
-        }
-        historyIndex.value = app.getCurrentStackIndex()
-        historyFloor.value = historyIndex.value
-        historyCeiling.value = historyIndex.value
-        applyTool()
-    } finally { restoring = false }
+    restoreAnnotationSnapshot(snapshot ?? { version: 1, groups: [] }, currentDwv, {
+        studyInstanceUIDs,
+        includesImageUid: uid => view.includesImageUid(uid),
+        frameCount
+    }, groups => {
+        for (const group of groups) for (const mark of group.getList()) mark.setViewController(view)
+        restoring = true
+        try {
+            for (const id of currentApp.getDataIds()) {
+                const group = currentApp.getData(id)?.annotationGroup
+                if (group) for (const mark of [...group.getList()]) group.remove(mark.trackingUid)
+            }
+            const target = currentApp.getDataIds().map(id => currentApp.getData(id)?.annotationGroup).find(Boolean)
+            if (target) {
+                for (const group of groups) for (const mark of group.getList()) target.add(mark)
+            } else if (groups.length) {
+                const data = currentApp.createAnnotationData(layer.getDataId())
+                for (const group of groups) for (const mark of group.getList()) data.annotationGroup?.add(mark)
+                currentApp.addAndRenderAnnotationData(data, containerId, layer.getDataId())
+            }
+            historyIndex.value = currentApp.getCurrentStackIndex()
+            historyFloor.value = historyIndex.value
+            historyCeiling.value = historyIndex.value
+            applyTool()
+        } finally { restoring = false }
+    })
 }
 function restoreProvidedAnnotations() {
     try { setAnnotations(props.annotations) }

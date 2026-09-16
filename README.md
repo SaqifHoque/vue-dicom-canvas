@@ -99,9 +99,9 @@ The viewer provides data; your application owns persistence.
 
 The viewer emits `update:annotations` and `annotations-change` for drawing changes, including undo/redo. A template ref also exposes `getAnnotations()` and `setAnnotations(snapshot)`. Pass `null` to the setter to clear marks. Call the setter after `loaded`; the prop may be supplied before loading and is applied when the image is ready.
 
-Restoring a snapshot starts a new undo/redo boundary. References outside the loaded image series are rejected. Invalid prop-based restores emit `annotation-error`; invalid imperative restores throw. Resetting the viewer does not erase the parent's saved annotation value.
+Restoring a snapshot starts a new undo/redo boundary. Before changing any marks, the viewer validates the snapshot structure and size, then checks its study, image, frame, and shape references against the loaded DICOM data. A failed restore leaves the current marks intact. Invalid prop-based restores emit `annotation-error`; invalid imperative restores throw. Resetting the viewer does not erase the parent's saved annotation value.
 
-Snapshots use this package's versioned JSON format, containing DWV DICOM SR elements and appearance information. They are not Annotorious JSON. They can include patient/study metadata copied from the DICOM source, so store and protect them as study data. The package does not connect to a database or autosave.
+Snapshots use this package's versioned JSON format, containing DWV DICOM SR elements and appearance information. They are limited to 10 MiB, 100 groups, 1,000 annotations, and 4,096 characters per annotation text. They are not Annotorious JSON. They can include patient/study metadata copied from the DICOM source, so store and protect them as study data. The package does not connect to a database or autosave.
 
 ## Component API
 
