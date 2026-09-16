@@ -10,6 +10,71 @@ export interface DicomAnnotations {
     }>
 }
 
+export interface AnnotationSnapshotLimits {
+    maxGroups: number
+    maxAnnotations: number
+    maxSnapshotBytes: number
+    maxTextLength: number
+}
+
+export const defaultAnnotationSnapshotLimits: Readonly<AnnotationSnapshotLimits> = Object.freeze({
+    maxGroups: 100,
+    maxAnnotations: 1000,
+    maxSnapshotBytes: 10 * 1024 * 1024,
+    maxTextLength: 4096
+})
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value)
+
+const requireString = (value: unknown, name: string, maxLength: number): string => {
+    if (typeof value !== 'string' || value.length === 0 || value.length > maxLength) {
+        throw new TypeError(`Invalid annotation ${name}.`)
+    }
+    return value
+}
+
+/** Validate the package snapshot envelope before passing DICOM data to DWV. */
+export function validateAnnotationSnapshot(
+    value: unknown,
+    limits: AnnotationSnapshotLimits = defaultAnnotationSnapshotLimits
+): asserts value is DicomAnnotations {
+    if (!isRecord(value) || value.version !== 1 || !Array.isArray(value.groups)) {
+        throw new TypeError('Unsupported annotation snapshot.')
+    }
+    if (value.groups.length > limits.maxGroups) throw new RangeError('Annotation snapshot has too many groups.')
+
+    let json: string
+    try { json = JSON.stringify(value) }
+    catch { throw new TypeError('Annotation snapshot must be JSON-compatible.') }
+    if (new TextEncoder().encode(json).byteLength > limits.maxSnapshotBytes) {
+        throw new RangeError('Annotation snapshot is too large.')
+    }
+
+    let annotationCount = 0
+    const appearanceIds = new Set<string>()
+    for (const saved of value.groups) {
+        if (!isRecord(saved) || !isRecord(saved.dicom) || !Array.isArray(saved.appearance)) {
+            throw new TypeError('Invalid annotation group.')
+        }
+        annotationCount += saved.appearance.length
+        if (annotationCount > limits.maxAnnotations) throw new RangeError('Annotation snapshot has too many annotations.')
+        for (const item of saved.appearance) {
+            if (!isRecord(item)) throw new TypeError('Invalid annotation appearance.')
+            const uid = requireString(item.uid, 'ID', 128)
+            requireString(item.colour, 'colour', 64)
+            if (typeof item.text !== 'string' || item.text.length > limits.maxTextLength) {
+                throw new TypeError('Invalid annotation text.')
+            }
+            if (appearanceIds.has(uid)) throw new TypeError('Duplicate annotation ID.')
+            appearanceIds.add(uid)
+            if (item.label !== undefined && (
+                !Array.isArray(item.label) || item.label.length !== 2 || !item.label.every(Number.isFinite)
+            )) throw new TypeError('Invalid annotation label position.')
+        }
+    }
+}
+
 export function exportGroups(groups: AnnotationGroup[], dwv: DwvModule): DicomAnnotations {
     const factory = new dwv.AnnotationGroupFactory()
     return JSON.parse(JSON.stringify({
@@ -25,23 +90,18 @@ export function exportGroups(groups: AnnotationGroup[], dwv: DwvModule): DicomAn
 }
 
 export function importGroups(snapshot: DicomAnnotations, dwv: DwvModule): AnnotationGroup[] {
-    if (!snapshot || snapshot.version !== 1 || !Array.isArray(snapshot.groups) || snapshot.groups.length > 100) {
-        throw new TypeError('Unsupported annotation snapshot.')
-    }
+    validateAnnotationSnapshot(snapshot)
     const ids = new Set<string>()
     return snapshot.groups.map(saved => {
-        if (!saved.dicom || !Array.isArray(saved.appearance)) throw new TypeError('Invalid annotation group.')
         const group = new dwv.AnnotationGroupFactory().create(JSON.parse(JSON.stringify(saved.dicom)))
         for (const mark of group.getList()) {
             if (ids.has(mark.trackingUid)) throw new TypeError('Duplicate annotation ID.')
             ids.add(mark.trackingUid)
             const style = saved.appearance.find(item => item.uid === mark.trackingUid)
             if (style) {
-                if (typeof style.colour !== 'string' || typeof style.text !== 'string') throw new TypeError('Invalid annotation appearance.')
                 mark.colour = style.colour
                 mark.textExpr = style.text
                 if (style.label) {
-                    if (style.label.length !== 2 || !style.label.every(Number.isFinite)) throw new TypeError('Invalid annotation label position.')
                     mark.labelPosition = new dwv.Point2D(...style.label)
                 }
             }

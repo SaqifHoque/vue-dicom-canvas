@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { reactive } from 'vue'
 import * as dwv from 'dwv'
-import { exportGroups, importGroups } from '../src/annotation-utils'
+import { exportGroups, importGroups, validateAnnotationSnapshot } from '../src/annotation-utils'
 
 describe('annotation persistence', () => {
     it('round trips geometry, image/frame references, color and labels through JSON', () => {
@@ -35,5 +35,23 @@ describe('annotation persistence', () => {
     it('supports clearing and rejects unsupported versions', () => {
         assert.deepEqual(importGroups({ version: 1, groups: [] }, dwv), [])
         assert.throws(() => importGroups({ version: 2, groups: [] } as never, dwv))
+    })
+
+    it('validates snapshot structure and resource limits before parsing DICOM data', () => {
+        assert.throws(() => validateAnnotationSnapshot({ version: 1, groups: [{}] }), /Invalid annotation group/)
+        assert.throws(() => validateAnnotationSnapshot({
+            version: 1,
+            groups: [{ dicom: {}, appearance: [{ uid: '1', colour: '#fff', text: 'x'.repeat(5) }] }]
+        }, { maxGroups: 1, maxAnnotations: 1, maxSnapshotBytes: 1000, maxTextLength: 4 }), /Invalid annotation text/)
+        assert.throws(() => validateAnnotationSnapshot({
+            version: 1,
+            groups: [{ dicom: {}, appearance: [
+                { uid: '1', colour: '#fff', text: '' },
+                { uid: '1', colour: '#000', text: '' }
+            ] }]
+        }), /Duplicate annotation ID/)
+        assert.throws(() => validateAnnotationSnapshot({ version: 1, groups: [] }, {
+            maxGroups: 1, maxAnnotations: 1, maxSnapshotBytes: 1, maxTextLength: 4
+        }), /too large/)
     })
 })
