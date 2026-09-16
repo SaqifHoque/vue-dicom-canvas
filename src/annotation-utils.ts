@@ -151,3 +151,15 @@ export function validateAnnotationReferences(
         }
     }
 }
+
+/** Parse and validate a snapshot completely before allowing viewer state to change. */
+export function restoreAnnotationSnapshot(
+    snapshot: DicomAnnotations,
+    dwv: DwvModule,
+    context: AnnotationReferenceContext,
+    apply: (groups: AnnotationGroup[]) => void
+): void {
+    const groups = importGroups(snapshot, dwv)
+    validateAnnotationReferences(groups, dwv, context)
+    apply(groups)
+}

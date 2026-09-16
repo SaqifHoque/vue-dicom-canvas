@@ -5,6 +5,7 @@ import * as dwv from 'dwv'
 import {
     exportGroups,
     importGroups,
+    restoreAnnotationSnapshot,
     validateAnnotationReferences,
     validateAnnotationSnapshot
 } from '../src/annotation-utils'
@@ -83,5 +84,37 @@ describe('annotation persistence', () => {
         group.getList()[0]!.referencedFrameNumber = 4
         group.getList()[0]!.mathShape = {}
         assert.throws(() => validateAnnotationReferences([group], dwv, context), /Unsupported annotation shape/)
+    })
+
+    it('leaves existing marks unchanged when a restore is invalid', () => {
+        const current = createGroup()
+        const savedUid = current.getList()[0]!.trackingUid
+        const incoming = createGroup()
+        const snapshot = exportGroups([incoming], dwv)
+        let applied = false
+
+        snapshot.groups[0]!.appearance[0]!.uid = 'missing-from-dicom-data'
+        assert.throws(() => restoreAnnotationSnapshot(snapshot, dwv, {
+            studyInstanceUIDs: new Set(['2.25.1']),
+            includesImageUid: () => true,
+            frameCount: 4
+        }, () => { applied = true }), /appearance does not match/)
+
+        incoming.setMetaValue('StudyInstanceUID', '9.9.9')
+        const mismatchedSnapshot = exportGroups([incoming], dwv)
+
+        assert.throws(() => restoreAnnotationSnapshot(mismatchedSnapshot, dwv, {
+            studyInstanceUIDs: new Set(['2.25.1']),
+            includesImageUid: () => true,
+            frameCount: 4
+        }, groups => {
+            applied = true
+            for (const mark of [...current.getList()]) current.remove(mark.trackingUid)
+            for (const group of groups) for (const mark of group.getList()) current.add(mark)
+        }), /different DICOM study/)
+
+        assert.equal(applied, false)
+        assert.equal(current.getLength(), 1)
+        assert.equal(current.getList()[0]!.trackingUid, savedUid)
     })
 })

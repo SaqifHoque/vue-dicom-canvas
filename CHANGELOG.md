@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Annotation validation
+
+- Validate annotation snapshot structure and resource limits before DWV parsing.
+- Reject study, image, frame, appearance, and shape references that do not match the loaded data.
+- Preserve current marks when a requested annotation restore fails validation.
+
 ## Unreleased — Load lifecycle
 
 - Remove Dependabot configuration; dependency upgrades are now prepared manually.
