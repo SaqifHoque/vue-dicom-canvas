@@ -24,6 +24,12 @@ export const defaultAnnotationSnapshotLimits: Readonly<AnnotationSnapshotLimits>
     maxTextLength: 4096
 })
 
+export interface AnnotationReferenceContext {
+    studyInstanceUIDs: ReadonlySet<string>
+    includesImageUid: (uid: string) => boolean
+    frameCount: number
+}
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null && !Array.isArray(value)
 
@@ -92,20 +98,56 @@ export function exportGroups(groups: AnnotationGroup[], dwv: DwvModule): DicomAn
 export function importGroups(snapshot: DicomAnnotations, dwv: DwvModule): AnnotationGroup[] {
     validateAnnotationSnapshot(snapshot)
     const ids = new Set<string>()
+    let annotationCount = 0
     return snapshot.groups.map(saved => {
         const group = new dwv.AnnotationGroupFactory().create(JSON.parse(JSON.stringify(saved.dicom)))
+        annotationCount += group.getLength()
+        if (annotationCount > defaultAnnotationSnapshotLimits.maxAnnotations) {
+            throw new RangeError('Annotation snapshot has too many annotations.')
+        }
+        if (group.getLength() !== saved.appearance.length) throw new TypeError('Annotation appearance does not match DICOM data.')
         for (const mark of group.getList()) {
             if (ids.has(mark.trackingUid)) throw new TypeError('Duplicate annotation ID.')
             ids.add(mark.trackingUid)
             const style = saved.appearance.find(item => item.uid === mark.trackingUid)
-            if (style) {
-                mark.colour = style.colour
-                mark.textExpr = style.text
-                if (style.label) {
-                    mark.labelPosition = new dwv.Point2D(...style.label)
-                }
+            if (!style) throw new TypeError('Annotation appearance does not match DICOM data.')
+            mark.colour = style.colour
+            mark.textExpr = style.text
+            if (style.label) {
+                mark.labelPosition = new dwv.Point2D(...style.label)
             }
         }
         return group
     })
+}
+
+/** Validate imported marks against the image currently loaded in the viewer. */
+export function validateAnnotationReferences(
+    groups: AnnotationGroup[],
+    dwv: DwvModule,
+    context: AnnotationReferenceContext
+): void {
+    const supportedShapes = [dwv.Rectangle, dwv.Ellipse, dwv.ROI, dwv.Circle, dwv.Protractor]
+    for (const group of groups) {
+        const studyUid = group.getMetaValue('StudyInstanceUID')
+        if (typeof studyUid !== 'string' || !context.studyInstanceUIDs.has(studyUid)) {
+            throw new Error('Annotations belong to a different DICOM study.')
+        }
+        for (const mark of group.getList()) {
+            if (typeof mark.referencedSopInstanceUID !== 'string' || !context.includesImageUid(mark.referencedSopInstanceUID)) {
+                throw new Error('Annotations belong to a different DICOM image or series.')
+            }
+            if (typeof mark.referencedSopClassUID !== 'string' || mark.referencedSopClassUID.length === 0) {
+                throw new TypeError('Invalid annotation image class reference.')
+            }
+            if (mark.referencedFrameNumber !== undefined && (
+                !Number.isInteger(mark.referencedFrameNumber) ||
+                mark.referencedFrameNumber < 1 ||
+                mark.referencedFrameNumber > context.frameCount
+            )) throw new RangeError('Annotation references an unavailable DICOM frame.')
+            if (!supportedShapes.some(Shape => mark.mathShape instanceof Shape)) {
+                throw new TypeError('Unsupported annotation shape.')
+            }
+        }
+    }
 }

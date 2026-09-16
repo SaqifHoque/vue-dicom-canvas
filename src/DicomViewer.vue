@@ -58,7 +58,12 @@ let nextViewerId = 0
 <script setup lang="ts">
 import type { App } from 'dwv'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { exportGroups, importGroups, type DicomAnnotations } from './annotation-utils'
+import {
+    exportGroups,
+    importGroups,
+    validateAnnotationReferences,
+    type DicomAnnotations
+} from './annotation-utils'
 import type { DwvModule } from './dwv-loader'
 import { loadDwv } from './dwv-loader'
 import { isZipFile } from './file-utils'
@@ -189,8 +194,22 @@ function setAnnotations(snapshot: DicomAnnotations | null): void {
     const layer = app.getActiveLayerGroup()?.getBaseViewLayer()
     const view = layer?.getViewController()
     if (!layer || !view) throw new Error('No image is available for annotations.')
+    const studyInstanceUIDs = new Set<string>()
+    let frameCount = 1
+    for (const id of app.getDataIds()) {
+        const data = app.getData(id)
+        if (!data?.image) continue
+        const meta = dwv.getAsSimpleElements(data.meta) as Record<string, unknown>
+        if (typeof meta.StudyInstanceUID === 'string') studyInstanceUIDs.add(meta.StudyInstanceUID)
+        const frames = Number(meta.NumberOfFrames ?? 1)
+        if (Number.isInteger(frames) && frames > frameCount) frameCount = frames
+    }
+    validateAnnotationReferences(groups, dwv, {
+        studyInstanceUIDs,
+        includesImageUid: uid => view.includesImageUid(uid),
+        frameCount
+    })
     for (const group of groups) for (const mark of group.getList()) {
-        if (!view.includesImageUid(mark.referencedSopInstanceUID)) throw new Error('Annotations belong to a different DICOM image or series.')
         mark.setViewController(view)
     }
     restoring = true
