@@ -127,11 +127,15 @@ Snapshots use this package's versioned JSON format, containing DWV DICOM SR elem
 
 ### Events, slots, and methods
 
-- **Events:** `load-start`, `load-progress`, `loaded`, `error`, `annotation-error`, `update:annotations`, `annotations-change`, and `update:settingsOpen`.
-- **Slots:** `loading`, `empty`, and `error`. The error slot receives `{ error }`.
-- **Methods:** `load(source?)`, `reset()`, `fitToContainer()`, `setSlice(oneBasedIndex)`, `getAnnotations()`, `setAnnotations(snapshot)`, `getStatus()`, and `getApp()`.
+- **Events:** `load-start`, `load-progress`, `loaded`, `error`, `load-abort`, `load-timeout`, `annotation-error`, `update:annotations`, `annotations-change`, and `update:settingsOpen`.
+- **Slots:** `loading`, `empty`, and `error`. The error slot receives `{ error, retry }`. The default error display includes a Retry button.
+- **Methods:** `load(source?)`, `retry()`, `reset()`, `fitToContainer()`, `setSlice(oneBasedIndex)`, `getAnnotations()`, `setAnnotations(snapshot)`, `getStatus()`, and `getApp()`.
 
-`load()` starts loading; use `loaded` or `error` to observe completion. `getApp()` exposes DWV for advanced integrations. DWV requires browser APIs; use a client-only viewer in SSR applications.
+`load()` now resolves when that specific request reaches a terminal state. Its `DicomLoadResult` status is `loaded`, `error`, `aborted`, `timeout`, `empty`, or `superseded`. Starting another load resolves the earlier promise as `superseded`; late events from the earlier DWV data ID are ignored. Results resolve rather than reject, so event-driven consumers do not also need an unhandled-rejection path.
+
+`reset()` aborts an active request and emits `load-abort` with the `reset` reason. A DWV-originated abort emits the same event with the `dwv` reason. Timeouts set the error state, emit both `load-timeout` and `error`, and can be retried with the default button, the error slot's `retry` callback, or the exposed `retry()` method. Component teardown settles an outstanding `load()` result without emitting after unmount.
+
+`getApp()` exposes DWV for advanced integrations. DWV requires browser APIs; use a client-only viewer in SSR applications.
 
 ## Development and checks
 

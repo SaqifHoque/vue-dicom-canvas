@@ -35,7 +35,7 @@
     "scripts": {
         "build": "vue-tsc --noEmit && vite build && vue-tsc -p tsconfig.build.json",
         "typecheck": "vue-tsc --noEmit",
-        "test": "esbuild tests/*.test.ts --bundle --platform=node --format=esm --external:dwv --external:vue --outdir=.test-dist && node --test .test-dist/file-utils.test.js .test-dist/source-utils.test.js .test-dist/security.test.js .test-dist/annotation-utils.test.js",
+        "test": "esbuild tests/*.test.ts --bundle --platform=node --format=esm --external:dwv --external:vue --outdir=.test-dist && node --test .test-dist/*.test.js",
         "audit": "npm audit --audit-level=high",
         "verify:workers": "node scripts/verify-workers.mjs",
         "check": "npm run test && npm run build && npm run verify:workers",
