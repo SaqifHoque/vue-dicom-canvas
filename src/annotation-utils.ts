@@ -40,6 +40,12 @@ const requireString = (value: unknown, name: string, maxLength: number): string 
     return value
 }
 
+/** Compare a prop snapshot without letting malformed cyclic input escape its error path. */
+export function shouldRestoreAnnotationSnapshot(value: unknown, lastEmitted: string): boolean {
+    try { return JSON.stringify(value) !== lastEmitted }
+    catch { return true }
+}
+
 /** Validate the package snapshot envelope before passing DICOM data to DWV. */
 export function validateAnnotationSnapshot(
     value: unknown,

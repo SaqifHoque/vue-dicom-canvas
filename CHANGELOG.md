@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Annotation history
+
+- Centralize annotation replacement and start a fresh undo/redo boundary after restore or clear.
+- Emit typed change reasons and history state for drawing, undo, redo, imperative, and reactive prop changes.
+- Expose `getHistoryState()` and add coverage for create, replace, clear, history traversal, and prop loop prevention.
+
 ## Unreleased — Annotation validation
 
 - Validate annotation snapshot structure and resource limits before DWV parsing.

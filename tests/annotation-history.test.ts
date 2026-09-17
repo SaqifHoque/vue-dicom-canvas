@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import * as dwv from 'dwv'
 import { AnnotationHistoryController } from '../src/annotation-history'
-import { replaceAnnotationGroups } from '../src/annotation-utils'
+import { replaceAnnotationGroups, shouldRestoreAnnotationSnapshot } from '../src/annotation-utils'
 
 const mark = (): dwv.Annotation => {
     const value = new dwv.Annotation()
@@ -18,6 +18,9 @@ describe('annotation replacement and history', () => {
         })
         assert.equal(history.sync(4, 4).canUndo, true)
         assert.equal(history.sync(3, 4).canRedo, true)
+        assert.equal(history.sync(4, 4).canRedo, false)
+        assert.equal(history.sync(3, 4).canRedo, true)
+        assert.equal(history.sync(4, 4).canRedo, false, 'a new command after undo discards the redo branch')
         assert.deepEqual(history.reset(), {
             index: 0, floor: 0, ceiling: 0, canUndo: false, canRedo: false
         })
@@ -36,5 +39,33 @@ describe('annotation replacement and history', () => {
 
         replaceAnnotationGroups([current], [], () => new dwv.AnnotationGroup())
         assert.equal(current.getLength(), 0)
+    })
+
+    it('creates a target group when the first annotation is added', () => {
+        const incoming = new dwv.AnnotationGroup()
+        const incomingMark = mark()
+        incoming.add(incomingMark)
+        const created = new dwv.AnnotationGroup()
+        let createCount = 0
+
+        const result = replaceAnnotationGroups([], [incoming], () => {
+            createCount += 1
+            return created
+        })
+
+        assert.equal(result.created, true)
+        assert.equal(result.target, created)
+        assert.equal(createCount, 1)
+        assert.deepEqual(created.getList(), [incomingMark])
+    })
+
+    it('distinguishes reactive prop updates from emitted snapshots', () => {
+        const snapshot = { version: 1, groups: [] } as const
+        assert.equal(shouldRestoreAnnotationSnapshot(snapshot, JSON.stringify(snapshot)), false)
+        assert.equal(shouldRestoreAnnotationSnapshot(snapshot, ''), true)
+
+        const cyclic: { self?: unknown } = {}
+        cyclic.self = cyclic
+        assert.equal(shouldRestoreAnnotationSnapshot(cyclic, ''), true)
     })
 })

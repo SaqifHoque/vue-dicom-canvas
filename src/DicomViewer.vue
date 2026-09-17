@@ -62,6 +62,7 @@ import {
     exportGroups,
     replaceAnnotationGroups,
     restoreAnnotationSnapshot,
+    shouldRestoreAnnotationSnapshot,
     type DicomAnnotations
 } from './annotation-utils'
 import {
@@ -445,7 +446,7 @@ watch(
 
 watch(() => props.settingsOpen, value => { panelOpen.value = value })
 watch(() => props.annotations, value => {
-    if (status.value === 'ready' && JSON.stringify(value) !== lastEmitted) restoreProvidedAnnotations(true)
+    if (status.value === 'ready' && shouldRestoreAnnotationSnapshot(value, lastEmitted)) restoreProvidedAnnotations(true)
 }, { deep: true })
 
 onBeforeUnmount(() => {
