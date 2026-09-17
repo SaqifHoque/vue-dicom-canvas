@@ -38,7 +38,7 @@
                     <option value="WindowLevel">Window / level</option><option>Ruler</option><option>Rectangle</option><option>Ellipse</option><option>Arrow</option>
                 </select></label>
                 <label>Color <input v-model="colour" type="color" @input="applyTool" /></label>
-                <button :disabled="historyIndex <= historyFloor" @click="undo">Undo</button><button :disabled="historyIndex >= historyCeiling" @click="redo">Redo</button>
+                <button :disabled="!historyState.canUndo" @click="undo">Undo</button><button :disabled="!historyState.canRedo" @click="redo">Redo</button>
                 <button @click="app?.fitToContainer()">Fit</button>
                 <div class="dicom-viewer__slices">
                     <button :disabled="slice <= 1" aria-label="Previous slice" @click="setSlice(slice - 1)">‹</button>
@@ -60,9 +60,11 @@ import type { App } from 'dwv'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
     exportGroups,
+    replaceAnnotationGroups,
     restoreAnnotationSnapshot,
     type DicomAnnotations
 } from './annotation-utils'
+import { AnnotationHistoryController } from './annotation-history'
 import type { DwvModule } from './dwv-loader'
 import { loadDwv } from './dwv-loader'
 import { isZipFile } from './file-utils'
@@ -122,18 +124,16 @@ const selectedTool = ref('Scroll')
 const colour = ref('#ffff80')
 const slice = ref(1)
 const sliceCount = ref(1)
-const historyIndex = ref(0)
-const historyFloor = ref(0)
-const historyCeiling = ref(0)
+const history = new AnnotationHistoryController()
+const historyState = ref(history.getState())
 function syncHistory() {
-    historyIndex.value = app?.getCurrentStackIndex() ?? 0
-    historyCeiling.value = app?.getStackSize() ?? 0
+    historyState.value = history.sync(app?.getCurrentStackIndex() ?? 0, app?.getStackSize() ?? 0)
 }
 function undo() {
-    if (historyIndex.value > historyFloor.value) { app?.undo(); historyIndex.value = app?.getCurrentStackIndex() ?? 0 }
+    if (historyState.value.canUndo) { app?.undo(); syncHistory() }
 }
 function redo() {
-    if (historyIndex.value < historyCeiling.value) { app?.redo(); historyIndex.value = app?.getCurrentStackIndex() ?? 0 }
+    if (historyState.value.canRedo) { app?.redo(); syncHistory() }
 }
 let restoring = false
 let lastEmitted = ''
@@ -212,21 +212,20 @@ function setAnnotations(snapshot: DicomAnnotations | null): void {
         for (const group of groups) for (const mark of group.getList()) mark.setViewController(view)
         restoring = true
         try {
-            for (const id of currentApp.getDataIds()) {
+            let createdData: ReturnType<typeof currentApp.createAnnotationData> | undefined
+            const currentGroups = currentApp.getDataIds().flatMap(id => {
                 const group = currentApp.getData(id)?.annotationGroup
-                if (group) for (const mark of [...group.getList()]) group.remove(mark.trackingUid)
+                return group ? [group] : []
+            })
+            const replacement = replaceAnnotationGroups(currentGroups, groups, () => {
+                createdData = currentApp.createAnnotationData(layer.getDataId())
+                if (!createdData.annotationGroup) throw new Error('Unable to create annotation data.')
+                return createdData.annotationGroup
+            })
+            if (replacement.created && createdData) {
+                currentApp.addAndRenderAnnotationData(createdData, containerId, layer.getDataId())
             }
-            const target = currentApp.getDataIds().map(id => currentApp.getData(id)?.annotationGroup).find(Boolean)
-            if (target) {
-                for (const group of groups) for (const mark of group.getList()) target.add(mark)
-            } else if (groups.length) {
-                const data = currentApp.createAnnotationData(layer.getDataId())
-                for (const group of groups) for (const mark of group.getList()) data.annotationGroup?.add(mark)
-                currentApp.addAndRenderAnnotationData(data, containerId, layer.getDataId())
-            }
-            historyIndex.value = currentApp.getCurrentStackIndex()
-            historyFloor.value = historyIndex.value
-            historyCeiling.value = historyIndex.value
+            historyState.value = history.setBoundary(currentApp.getCurrentStackIndex())
             applyTool()
         } finally { restoring = false }
     })
@@ -313,9 +312,7 @@ const clearViewer = (): void => {
         app.abortAllLoads()
         app.reset()
     }
-    historyIndex.value = 0
-    historyFloor.value = 0
-    historyCeiling.value = 0
+    historyState.value = history.reset()
     lastEmitted = ''
     hasSource.value = false
     canRetry.value = false

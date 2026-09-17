@@ -163,3 +163,26 @@ export function restoreAnnotationSnapshot(
     validateAnnotationReferences(groups, dwv, context)
     apply(groups)
 }
+
+export interface AnnotationReplacementResult {
+    target?: AnnotationGroup
+    created: boolean
+}
+
+/** Replace all current marks only after a restore has been fully prepared. */
+export function replaceAnnotationGroups(
+    currentGroups: AnnotationGroup[],
+    replacementGroups: AnnotationGroup[],
+    createTarget: () => AnnotationGroup
+): AnnotationReplacementResult {
+    const replacements = replacementGroups.flatMap(group => group.getList())
+    let target = currentGroups[0]
+    const created = !target && replacements.length > 0
+    if (created) target = createTarget()
+
+    for (const group of currentGroups) {
+        for (const mark of [...group.getList()]) group.remove(mark.trackingUid)
+    }
+    if (target) for (const mark of replacements) target.add(mark)
+    return { target, created }
+}
