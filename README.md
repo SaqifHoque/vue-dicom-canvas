@@ -97,9 +97,11 @@ The viewer provides data; your application owns persistence.
 2. Save that value as JSON through your backend, together with the study/series identifier.
 3. Retrieve the JSON and supply it with the matching DICOM source to restore the marks.
 
-The viewer emits `update:annotations` and `annotations-change` for drawing changes, including undo/redo. A template ref also exposes `getAnnotations()` and `setAnnotations(snapshot)`. Pass `null` to the setter to clear marks. Call the setter after `loaded`; the prop may be supplied before loading and is applied when the image is ready.
+The viewer emits `update:annotations` for viewer-originated drawing, undo, redo, and imperative replacement changes. Every successful state change emits `annotations-change` with the snapshot and `{ reason, history }`; reasons are `draw`, `undo`, `redo`, `replace`, `clear`, or `prop`. Reactive prop restores use the `prop` reason without echoing `update:annotations`. The separate `history-change` event reports `{ index, floor, ceiling, canUndo, canRedo }` whenever availability changes.
 
-Restoring a snapshot starts a new undo/redo boundary. Before changing any marks, the viewer validates the snapshot structure and size, then checks its study, image, frame, and shape references against the loaded DICOM data. A failed restore leaves the current marks intact. Invalid prop-based restores emit `annotation-error`; invalid imperative restores throw. Resetting the viewer does not erase the parent's saved annotation value.
+A template ref exposes `getAnnotations()`, `setAnnotations(snapshot)`, and `getHistoryState()`. Pass `null` to the setter to clear marks. Call the setter after `loaded`; the prop may be supplied before loading and is applied when the image is ready.
+
+Restoring or clearing annotations starts a new undo/redo boundary. Edits made before that replacement cannot be reached with the built-in Undo button, while new drawings can be undone and redone normally. Before changing any marks, the viewer validates the snapshot structure and size, then checks its study, image, frame, and shape references against the loaded DICOM data. A failed restore leaves the current marks and history boundary intact. Invalid prop-based restores emit `annotation-error`; invalid imperative restores throw. Resetting the viewer does not erase the parent's saved annotation value.
 
 Snapshots use this package's versioned JSON format, containing DWV DICOM SR elements and appearance information. They are limited to 10 MiB, 100 groups, 1,000 annotations, and 4,096 characters per annotation text. They are not Annotorious JSON. They can include patient/study metadata copied from the DICOM source, so store and protect them as study data. The package does not connect to a database or autosave.
 
@@ -127,9 +129,9 @@ Snapshots use this package's versioned JSON format, containing DWV DICOM SR elem
 
 ### Events, slots, and methods
 
-- **Events:** `load-start`, `load-progress`, `loaded`, `error`, `load-abort`, `load-timeout`, `annotation-error`, `update:annotations`, `annotations-change`, and `update:settingsOpen`.
+- **Events:** `load-start`, `load-progress`, `loaded`, `error`, `load-abort`, `load-timeout`, `annotation-error`, `update:annotations`, `annotations-change`, `history-change`, and `update:settingsOpen`.
 - **Slots:** `loading`, `empty`, and `error`. The error slot receives `{ error, retry }`. The default error display includes a Retry button.
-- **Methods:** `load(source?)`, `retry()`, `reset()`, `fitToContainer()`, `setSlice(oneBasedIndex)`, `getAnnotations()`, `setAnnotations(snapshot)`, `getStatus()`, and `getApp()`.
+- **Methods:** `load(source?)`, `retry()`, `reset()`, `fitToContainer()`, `setSlice(oneBasedIndex)`, `getAnnotations()`, `setAnnotations(snapshot)`, `getHistoryState()`, `getStatus()`, and `getApp()`.
 
 `load()` now resolves when that specific request reaches a terminal state. Its `DicomLoadResult` status is `loaded`, `error`, `aborted`, `timeout`, `empty`, or `superseded`. Starting another load resolves the earlier promise as `superseded`; late events from the earlier DWV data ID are ignored. Results resolve rather than reject, so event-driven consumers do not also need an unhandled-rejection path.
 

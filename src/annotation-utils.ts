@@ -40,6 +40,12 @@ const requireString = (value: unknown, name: string, maxLength: number): string 
     return value
 }
 
+/** Compare a prop snapshot without letting malformed cyclic input escape its error path. */
+export function shouldRestoreAnnotationSnapshot(value: unknown, lastEmitted: string): boolean {
+    try { return JSON.stringify(value) !== lastEmitted }
+    catch { return true }
+}
+
 /** Validate the package snapshot envelope before passing DICOM data to DWV. */
 export function validateAnnotationSnapshot(
     value: unknown,
@@ -162,4 +168,27 @@ export function restoreAnnotationSnapshot(
     const groups = importGroups(snapshot, dwv)
     validateAnnotationReferences(groups, dwv, context)
     apply(groups)
+}
+
+export interface AnnotationReplacementResult {
+    target?: AnnotationGroup
+    created: boolean
+}
+
+/** Replace all current marks only after a restore has been fully prepared. */
+export function replaceAnnotationGroups(
+    currentGroups: AnnotationGroup[],
+    replacementGroups: AnnotationGroup[],
+    createTarget: () => AnnotationGroup
+): AnnotationReplacementResult {
+    const replacements = replacementGroups.flatMap(group => group.getList())
+    let target = currentGroups[0]
+    const created = !target && replacements.length > 0
+    if (created) target = createTarget()
+
+    for (const group of currentGroups) {
+        for (const mark of [...group.getList()]) group.remove(mark.trackingUid)
+    }
+    if (target) for (const mark of replacements) target.add(mark)
+    return { target, created }
 }

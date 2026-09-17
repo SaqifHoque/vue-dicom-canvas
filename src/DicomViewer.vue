@@ -38,7 +38,7 @@
                     <option value="WindowLevel">Window / level</option><option>Ruler</option><option>Rectangle</option><option>Ellipse</option><option>Arrow</option>
                 </select></label>
                 <label>Color <input v-model="colour" type="color" @input="applyTool" /></label>
-                <button :disabled="historyIndex <= historyFloor" @click="undo">Undo</button><button :disabled="historyIndex >= historyCeiling" @click="redo">Redo</button>
+                <button :disabled="!historyState.canUndo" @click="undo">Undo</button><button :disabled="!historyState.canRedo" @click="redo">Redo</button>
                 <button @click="app?.fitToContainer()">Fit</button>
                 <div class="dicom-viewer__slices">
                     <button :disabled="slice <= 1" aria-label="Previous slice" @click="setSlice(slice - 1)">‹</button>
@@ -60,9 +60,16 @@ import type { App } from 'dwv'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
     exportGroups,
+    replaceAnnotationGroups,
     restoreAnnotationSnapshot,
+    shouldRestoreAnnotationSnapshot,
     type DicomAnnotations
 } from './annotation-utils'
+import {
+    AnnotationHistoryController,
+    type AnnotationChangeDetails,
+    type AnnotationChangeReason
+} from './annotation-history'
 import type { DwvModule } from './dwv-loader'
 import { loadDwv } from './dwv-loader'
 import { isZipFile } from './file-utils'
@@ -93,7 +100,8 @@ const props = withDefaults(
 
 const emit = defineEmits<{
     'update:annotations': [annotations: DicomAnnotations]
-    'annotations-change': [annotations: DicomAnnotations]
+    'annotations-change': [annotations: DicomAnnotations, details: AnnotationChangeDetails]
+    'history-change': [history: AnnotationChangeDetails['history']]
     'annotation-error': [error: Error]
     'update:settingsOpen': [open: boolean]
     'load-start': [event: unknown]
@@ -122,18 +130,24 @@ const selectedTool = ref('Scroll')
 const colour = ref('#ffff80')
 const slice = ref(1)
 const sliceCount = ref(1)
-const historyIndex = ref(0)
-const historyFloor = ref(0)
-const historyCeiling = ref(0)
+const history = new AnnotationHistoryController()
+const historyState = ref(history.getState())
 function syncHistory() {
-    historyIndex.value = app?.getCurrentStackIndex() ?? 0
-    historyCeiling.value = app?.getStackSize() ?? 0
+    historyState.value = history.sync(app?.getCurrentStackIndex() ?? 0, app?.getStackSize() ?? 0)
+    emit('history-change', historyState.value)
 }
+let historyAction: Extract<AnnotationChangeReason, 'undo' | 'redo'> | null = null
 function undo() {
-    if (historyIndex.value > historyFloor.value) { app?.undo(); historyIndex.value = app?.getCurrentStackIndex() ?? 0 }
+    if (!historyState.value.canUndo) return
+    historyAction = 'undo'
+    try { app?.undo() }
+    finally { historyAction = null; syncHistory() }
 }
 function redo() {
-    if (historyIndex.value < historyCeiling.value) { app?.redo(); historyIndex.value = app?.getCurrentStackIndex() ?? 0 }
+    if (!historyState.value.canRedo) return
+    historyAction = 'redo'
+    try { app?.redo() }
+    finally { historyAction = null; syncHistory() }
 }
 let restoring = false
 let lastEmitted = ''
@@ -178,16 +192,18 @@ function getAnnotations(): DicomAnnotations {
         return group ? [group] : []
     }), dwv)
 }
+function emitAnnotationsChange(reason: AnnotationChangeReason, updateModel: boolean): void {
+    const snapshot = getAnnotations()
+    lastEmitted = JSON.stringify(snapshot)
+    if (updateModel) emit('update:annotations', snapshot)
+    emit('annotations-change', snapshot, { reason, history: historyState.value })
+}
 function annotationsChanged() {
     if (restoring) return
-    try {
-        const snapshot = getAnnotations()
-        lastEmitted = JSON.stringify(snapshot)
-        emit('update:annotations', snapshot)
-        emit('annotations-change', snapshot)
-    } catch (error) { emit('annotation-error', toError(error)) }
+    try { emitAnnotationsChange(historyAction ?? 'draw', true) }
+    catch (error) { emit('annotation-error', toError(error)) }
 }
-function setAnnotations(snapshot: DicomAnnotations | null): void {
+function replaceAnnotations(snapshot: DicomAnnotations | null): void {
     if (!app || !dwv || status.value !== 'ready') throw new Error('Load a DICOM image before setting annotations.')
     const currentApp = app
     const currentDwv = dwv
@@ -212,27 +228,34 @@ function setAnnotations(snapshot: DicomAnnotations | null): void {
         for (const group of groups) for (const mark of group.getList()) mark.setViewController(view)
         restoring = true
         try {
-            for (const id of currentApp.getDataIds()) {
+            let createdData: ReturnType<typeof currentApp.createAnnotationData> | undefined
+            const currentGroups = currentApp.getDataIds().flatMap(id => {
                 const group = currentApp.getData(id)?.annotationGroup
-                if (group) for (const mark of [...group.getList()]) group.remove(mark.trackingUid)
+                return group ? [group] : []
+            })
+            const replacement = replaceAnnotationGroups(currentGroups, groups, () => {
+                createdData = currentApp.createAnnotationData(layer.getDataId())
+                if (!createdData.annotationGroup) throw new Error('Unable to create annotation data.')
+                return createdData.annotationGroup
+            })
+            if (replacement.created && createdData) {
+                currentApp.addAndRenderAnnotationData(createdData, containerId, layer.getDataId())
             }
-            const target = currentApp.getDataIds().map(id => currentApp.getData(id)?.annotationGroup).find(Boolean)
-            if (target) {
-                for (const group of groups) for (const mark of group.getList()) target.add(mark)
-            } else if (groups.length) {
-                const data = currentApp.createAnnotationData(layer.getDataId())
-                for (const group of groups) for (const mark of group.getList()) data.annotationGroup?.add(mark)
-                currentApp.addAndRenderAnnotationData(data, containerId, layer.getDataId())
-            }
-            historyIndex.value = currentApp.getCurrentStackIndex()
-            historyFloor.value = historyIndex.value
-            historyCeiling.value = historyIndex.value
+            historyState.value = history.setBoundary(currentApp.getCurrentStackIndex())
+            emit('history-change', historyState.value)
             applyTool()
         } finally { restoring = false }
     })
 }
-function restoreProvidedAnnotations() {
-    try { setAnnotations(props.annotations) }
+function setAnnotations(snapshot: DicomAnnotations | null): void {
+    replaceAnnotations(snapshot)
+    emitAnnotationsChange(snapshot === null ? 'clear' : 'replace', true)
+}
+function restoreProvidedAnnotations(announce = false) {
+    try {
+        replaceAnnotations(props.annotations)
+        if (announce) emitAnnotationsChange('prop', false)
+    }
     catch (error) { emit('annotation-error', toError(error)) }
 }
 
@@ -313,9 +336,8 @@ const clearViewer = (): void => {
         app.abortAllLoads()
         app.reset()
     }
-    historyIndex.value = 0
-    historyFloor.value = 0
-    historyCeiling.value = 0
+    historyState.value = history.reset()
+    emit('history-change', historyState.value)
     lastEmitted = ''
     hasSource.value = false
     canRetry.value = false
@@ -424,7 +446,7 @@ watch(
 
 watch(() => props.settingsOpen, value => { panelOpen.value = value })
 watch(() => props.annotations, value => {
-    if (status.value === 'ready' && JSON.stringify(value) !== lastEmitted) restoreProvidedAnnotations()
+    if (status.value === 'ready' && shouldRestoreAnnotationSnapshot(value, lastEmitted)) restoreProvidedAnnotations(true)
 }, { deep: true })
 
 onBeforeUnmount(() => {
@@ -456,6 +478,7 @@ defineExpose({
     getStatus: () => status.value,
     getAnnotations,
     setAnnotations,
+    getHistoryState: () => history.getState(),
     setSlice
 })
 </script>
