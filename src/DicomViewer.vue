@@ -64,7 +64,11 @@ import {
     restoreAnnotationSnapshot,
     type DicomAnnotations
 } from './annotation-utils'
-import { AnnotationHistoryController } from './annotation-history'
+import {
+    AnnotationHistoryController,
+    type AnnotationChangeDetails,
+    type AnnotationChangeReason
+} from './annotation-history'
 import type { DwvModule } from './dwv-loader'
 import { loadDwv } from './dwv-loader'
 import { isZipFile } from './file-utils'
@@ -95,7 +99,8 @@ const props = withDefaults(
 
 const emit = defineEmits<{
     'update:annotations': [annotations: DicomAnnotations]
-    'annotations-change': [annotations: DicomAnnotations]
+    'annotations-change': [annotations: DicomAnnotations, details: AnnotationChangeDetails]
+    'history-change': [history: AnnotationChangeDetails['history']]
     'annotation-error': [error: Error]
     'update:settingsOpen': [open: boolean]
     'load-start': [event: unknown]
@@ -128,12 +133,20 @@ const history = new AnnotationHistoryController()
 const historyState = ref(history.getState())
 function syncHistory() {
     historyState.value = history.sync(app?.getCurrentStackIndex() ?? 0, app?.getStackSize() ?? 0)
+    emit('history-change', historyState.value)
 }
+let historyAction: Extract<AnnotationChangeReason, 'undo' | 'redo'> | null = null
 function undo() {
-    if (historyState.value.canUndo) { app?.undo(); syncHistory() }
+    if (!historyState.value.canUndo) return
+    historyAction = 'undo'
+    try { app?.undo() }
+    finally { historyAction = null; syncHistory() }
 }
 function redo() {
-    if (historyState.value.canRedo) { app?.redo(); syncHistory() }
+    if (!historyState.value.canRedo) return
+    historyAction = 'redo'
+    try { app?.redo() }
+    finally { historyAction = null; syncHistory() }
 }
 let restoring = false
 let lastEmitted = ''
@@ -178,16 +191,18 @@ function getAnnotations(): DicomAnnotations {
         return group ? [group] : []
     }), dwv)
 }
+function emitAnnotationsChange(reason: AnnotationChangeReason, updateModel: boolean): void {
+    const snapshot = getAnnotations()
+    lastEmitted = JSON.stringify(snapshot)
+    if (updateModel) emit('update:annotations', snapshot)
+    emit('annotations-change', snapshot, { reason, history: historyState.value })
+}
 function annotationsChanged() {
     if (restoring) return
-    try {
-        const snapshot = getAnnotations()
-        lastEmitted = JSON.stringify(snapshot)
-        emit('update:annotations', snapshot)
-        emit('annotations-change', snapshot)
-    } catch (error) { emit('annotation-error', toError(error)) }
+    try { emitAnnotationsChange(historyAction ?? 'draw', true) }
+    catch (error) { emit('annotation-error', toError(error)) }
 }
-function setAnnotations(snapshot: DicomAnnotations | null): void {
+function replaceAnnotations(snapshot: DicomAnnotations | null): void {
     if (!app || !dwv || status.value !== 'ready') throw new Error('Load a DICOM image before setting annotations.')
     const currentApp = app
     const currentDwv = dwv
@@ -226,12 +241,20 @@ function setAnnotations(snapshot: DicomAnnotations | null): void {
                 currentApp.addAndRenderAnnotationData(createdData, containerId, layer.getDataId())
             }
             historyState.value = history.setBoundary(currentApp.getCurrentStackIndex())
+            emit('history-change', historyState.value)
             applyTool()
         } finally { restoring = false }
     })
 }
-function restoreProvidedAnnotations() {
-    try { setAnnotations(props.annotations) }
+function setAnnotations(snapshot: DicomAnnotations | null): void {
+    replaceAnnotations(snapshot)
+    emitAnnotationsChange(snapshot === null ? 'clear' : 'replace', true)
+}
+function restoreProvidedAnnotations(announce = false) {
+    try {
+        replaceAnnotations(props.annotations)
+        if (announce) emitAnnotationsChange('prop', false)
+    }
     catch (error) { emit('annotation-error', toError(error)) }
 }
 
@@ -313,6 +336,7 @@ const clearViewer = (): void => {
         app.reset()
     }
     historyState.value = history.reset()
+    emit('history-change', historyState.value)
     lastEmitted = ''
     hasSource.value = false
     canRetry.value = false
@@ -421,7 +445,7 @@ watch(
 
 watch(() => props.settingsOpen, value => { panelOpen.value = value })
 watch(() => props.annotations, value => {
-    if (status.value === 'ready' && JSON.stringify(value) !== lastEmitted) restoreProvidedAnnotations()
+    if (status.value === 'ready' && JSON.stringify(value) !== lastEmitted) restoreProvidedAnnotations(true)
 }, { deep: true })
 
 onBeforeUnmount(() => {
@@ -453,6 +477,7 @@ defineExpose({
     getStatus: () => status.value,
     getAnnotations,
     setAnnotations,
+    getHistoryState: () => history.getState(),
     setSlice
 })
 </script>

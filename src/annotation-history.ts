@@ -6,6 +6,13 @@ export interface AnnotationHistoryState {
     canRedo: boolean
 }
 
+export type AnnotationChangeReason = 'draw' | 'undo' | 'redo' | 'replace' | 'clear' | 'prop'
+
+export interface AnnotationChangeDetails {
+    reason: AnnotationChangeReason
+    history: AnnotationHistoryState
+}
+
 const normaliseIndex = (value: number): number =>
     Number.isInteger(value) && value > 0 ? value : 0
 
