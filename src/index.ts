@@ -6,4 +6,5 @@ export type { DicomSource, DicomViewerProps, DicomViewerStatus } from './types'
 
 export type { DicomAnnotations } from './annotation-utils'
 export type { AnnotationChangeDetails, AnnotationChangeReason, AnnotationHistoryState } from './annotation-history'
+export type { DicomNavigationAxis, DicomNavigationState } from './navigation'
 export type { DicomLoadResult } from './load-session'
