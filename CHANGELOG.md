@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Slice and frame navigation
+
+- Model DWV's spatial scroll dimension separately from the optional temporal frame dimension.
+- Add direct slice jumps and frame controls that preserve the other navigation coordinate.
+- Emit typed navigation state and expose imperative slice/frame navigation with bounds coverage.
+
 ## Unreleased — Annotation history
 
 - Centralize annotation replacement and start a fresh undo/redo boundary after restore or clear.
