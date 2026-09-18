@@ -40,11 +40,25 @@
                 <label>Color <input v-model="colour" type="color" @input="applyTool" /></label>
                 <button :disabled="!historyState.canUndo" @click="undo">Undo</button><button :disabled="!historyState.canRedo" @click="redo">Redo</button>
                 <button @click="app?.fitToContainer()">Fit</button>
-                <div class="dicom-viewer__slices">
-                    <button :disabled="slice <= 1" aria-label="Previous slice" @click="setSlice(slice - 1)">‹</button>
-                    <label :for="`${containerId}-slice`">Slice {{ slice }} / {{ sliceCount }}</label>
-                    <input :id="`${containerId}-slice`" type="range" min="1" :max="sliceCount" :value="slice" :disabled="sliceCount < 2" @input="setSlice(Number(($event.target as HTMLInputElement).value))" />
-                    <button :disabled="slice >= sliceCount" aria-label="Next slice" @click="setSlice(slice + 1)">›</button>
+                <div class="dicom-viewer__navigation">
+                    <div class="dicom-viewer__navigation-axis">
+                        <button :disabled="navigation.slice <= 1" aria-label="Previous slice" @click="setSlice(navigation.slice - 1)">‹</button>
+                        <label :for="`${containerId}-slice-number`">Slice
+                            <input :id="`${containerId}-slice-number`" type="number" min="1" :max="navigation.sliceCount" :value="navigation.slice" @change="setSlice(Number(($event.target as HTMLInputElement).value))" />
+                            / {{ navigation.sliceCount }}
+                        </label>
+                        <input :id="`${containerId}-slice`" type="range" min="1" :max="navigation.sliceCount" :value="navigation.slice" :disabled="navigation.sliceCount < 2" aria-label="Slice position" @input="setSlice(Number(($event.target as HTMLInputElement).value))" />
+                        <button :disabled="navigation.slice >= navigation.sliceCount" aria-label="Next slice" @click="setSlice(navigation.slice + 1)">›</button>
+                    </div>
+                    <div v-if="navigation.frameCount > 1" class="dicom-viewer__navigation-axis">
+                        <button :disabled="navigation.frame <= 1" aria-label="Previous frame" @click="setFrame(navigation.frame - 1)">‹</button>
+                        <label :for="`${containerId}-frame-number`">Frame
+                            <input :id="`${containerId}-frame-number`" type="number" min="1" :max="navigation.frameCount" :value="navigation.frame" @change="setFrame(Number(($event.target as HTMLInputElement).value))" />
+                            / {{ navigation.frameCount }}
+                        </label>
+                        <input :id="`${containerId}-frame`" type="range" min="1" :max="navigation.frameCount" :value="navigation.frame" aria-label="Frame position" @input="setFrame(Number(($event.target as HTMLInputElement).value))" />
+                        <button :disabled="navigation.frame >= navigation.frameCount" aria-label="Next frame" @click="setFrame(navigation.frame + 1)">›</button>
+                    </div>
                 </div>
             </div>
         </template>
@@ -74,6 +88,12 @@ import type { DwvModule } from './dwv-loader'
 import { loadDwv } from './dwv-loader'
 import { isZipFile } from './file-utils'
 import { LoadSessionController, type DicomLoadResult, type DicomLoadSession } from './load-session'
+import {
+    createNavigationModel,
+    indexForNavigation,
+    type DicomNavigationAxis,
+    type DicomNavigationState
+} from './navigation'
 import { normaliseDicomSource } from './source-utils'
 import type { DicomSource, DicomViewerProps, DicomViewerStatus } from './types'
 
@@ -103,6 +123,7 @@ const emit = defineEmits<{
     'annotations-change': [annotations: DicomAnnotations, details: AnnotationChangeDetails]
     'history-change': [history: AnnotationChangeDetails['history']]
     'annotation-error': [error: Error]
+    'navigation-change': [navigation: DicomNavigationState]
     'update:settingsOpen': [open: boolean]
     'load-start': [event: unknown]
     'load-progress': [event: unknown]
@@ -128,8 +149,7 @@ let dwv: DwvModule | null = null
 const panelOpen = ref(props.settingsOpen)
 const selectedTool = ref('Scroll')
 const colour = ref('#ffff80')
-const slice = ref(1)
-const sliceCount = ref(1)
+const navigation = ref<DicomNavigationState>({ slice: 1, sliceCount: 1, frame: 1, frameCount: 1 })
 const history = new AnnotationHistoryController()
 const historyState = ref(history.getState())
 function syncHistory() {
@@ -161,24 +181,41 @@ function toggleSettings() {
 function viewController() {
     return app?.getActiveLayerGroup()?.getBaseViewLayer()?.getViewController()
 }
-function syncSlice() {
+function syncNavigation() {
     const view = viewController()
     if (!view) return
-    const size = view.getImageSize()
-    const dim = size.length() > 3 && size.get(3) > 1 ? 3 : view.getScrollDimIndex()
-    sliceCount.value = size.get(dim)
-    slice.value = (view.getCurrentIndex().get(dim) ?? 0) + 1
+    const model = createNavigationModel(
+        view.getImageSize().getValues(),
+        view.getCurrentIndex().getValues(),
+        view.getScrollDimIndex()
+    )
+    const next: DicomNavigationState = {
+        slice: model.slice,
+        sliceCount: model.sliceCount,
+        frame: model.frame,
+        frameCount: model.frameCount
+    }
+    if (Object.keys(next).every(key => next[key as keyof DicomNavigationState] === navigation.value[key as keyof DicomNavigationState])) return
+    navigation.value = next
+    emit('navigation-change', next)
 }
-function setSlice(value: number) {
+function setNavigation(axis: DicomNavigationAxis, value: number) {
     const view = viewController()
-    if (!view || !dwv || !Number.isInteger(value) || value < 1 || value > sliceCount.value) return
-    const size = view.getImageSize()
-    const dim = size.length() > 3 && size.get(3) > 1 ? 3 : view.getScrollDimIndex()
-    const values = view.getCurrentIndex().getValues().slice()
-    values[dim] = value - 1
-    view.setCurrentIndex(new dwv.Index(values))
-    syncSlice()
+    if (!view || !dwv) return
+    const currentIndex = view.getCurrentIndex().getValues()
+    const model = createNavigationModel(
+        view.getImageSize().getValues(),
+        currentIndex,
+        view.getScrollDimIndex()
+    )
+    const nextIndex = indexForNavigation(currentIndex, model, axis, value)
+    if (!nextIndex) return
+    view.setCurrentIndex(new dwv.Index(nextIndex))
+    syncNavigation()
 }
+const setSlice = (value: number): void => setNavigation('slice', value)
+const setFrame = (value: number): void => setNavigation('frame', value)
+const getNavigationState = (): DicomNavigationState => ({ ...navigation.value })
 function applyTool() {
     if (!app || status.value !== 'ready') return
     const drawing = ['Ruler', 'Rectangle', 'Ellipse', 'Arrow'].includes(selectedTool.value)
@@ -293,8 +330,9 @@ const onLoadEnd = (event: unknown) => {
     if (!loadSessions.owns(event)) return
     status.value = 'ready'
     if (props.autoFit) app?.fitToContainer()
-    syncSlice()
+    syncNavigation()
     setSlice(1)
+    setFrame(1)
     applyTool()
     restoreProvidedAnnotations()
     emit('loaded', event)
@@ -341,8 +379,7 @@ const clearViewer = (): void => {
     lastEmitted = ''
     hasSource.value = false
     canRetry.value = false
-    slice.value = 1
-    sliceCount.value = 1
+    navigation.value = { slice: 1, sliceCount: 1, frame: 1, frameCount: 1 }
     status.value = 'idle'
     error.value = null
 }
@@ -411,7 +448,7 @@ const initialise = async (): Promise<void> => {
     app.addEventListener('loadstart', onLoadStart)
     app.addEventListener('loadprogress', onLoadProgress)
     app.addEventListener('load', onLoadEnd)
-    app.addEventListener('positionchange', syncSlice)
+    app.addEventListener('positionchange', syncNavigation)
     app.addEventListener('undoadd', syncHistory)
     for (const event of annotationEvents) app.addEventListener(event, annotationsChanged)
     app.addEventListener('error', onLoadError)
@@ -457,7 +494,7 @@ onBeforeUnmount(() => {
         app.removeEventListener('loadstart', onLoadStart)
         app.removeEventListener('loadprogress', onLoadProgress)
         app.removeEventListener('load', onLoadEnd)
-        app.removeEventListener('positionchange', syncSlice)
+        app.removeEventListener('positionchange', syncNavigation)
         app.removeEventListener('undoadd', syncHistory)
         for (const event of annotationEvents) app.removeEventListener(event, annotationsChanged)
         app.removeEventListener('error', onLoadError)
@@ -479,7 +516,9 @@ defineExpose({
     getAnnotations,
     setAnnotations,
     getHistoryState: () => history.getState(),
-    setSlice
+    getNavigationState,
+    setSlice,
+    setFrame
 })
 </script>
 
@@ -521,7 +560,9 @@ defineExpose({
 .dicom-viewer__settings button, .dicom-viewer__toggle, .dicom-viewer__settings select { border: 1px solid #64748b; border-radius: 5px; padding: 6px 9px; background: #1e293b; color: white; cursor: pointer; font: inherit; }
 .dicom-viewer__settings button:disabled { opacity: .4; cursor: default; }
 .dicom-viewer__settings input[type=color] { width: 36px; height: 28px; padding: 0; border: 0; }
-.dicom-viewer__slices { display: flex; width: 100%; align-items: center; gap: 8px; }
-.dicom-viewer__slices input { flex: 1; min-width: 40px; }
+.dicom-viewer__navigation { display: grid; width: 100%; gap: 8px; }
+.dicom-viewer__navigation-axis { display: flex; width: 100%; align-items: center; gap: 8px; }
+.dicom-viewer__navigation-axis input[type=range] { flex: 1; min-width: 40px; }
+.dicom-viewer__navigation-axis input[type=number] { width: 5em; }
 .dicom-viewer__settings :focus-visible, .dicom-viewer__toggle:focus-visible { outline: 2px solid #67e8f9; outline-offset: 2px; }
 </style>

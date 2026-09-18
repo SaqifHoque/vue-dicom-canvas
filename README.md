@@ -15,6 +15,7 @@ Vue DICOM Canvas wraps [DWV](https://github.com/ivmartel/dwv) in a typed Vue com
 - Annotation snapshots that retain image/frame references, geometry, colors, and labels.
 - Vue `v-model:annotations` and imperative export/restore methods.
 - Lazy-loaded imaging engine, typed exports, and ESM/CommonJS builds.
+- Independent slice and temporal-frame navigation with sliders, number inputs, and imperative controls.
 - A generated 12-slice demo with fictional metadata.
 
 ## Run locally
@@ -129,9 +130,11 @@ Snapshots use this package's versioned JSON format, containing DWV DICOM SR elem
 
 ### Events, slots, and methods
 
-- **Events:** `load-start`, `load-progress`, `loaded`, `error`, `load-abort`, `load-timeout`, `annotation-error`, `update:annotations`, `annotations-change`, `history-change`, and `update:settingsOpen`.
+- **Events:** `load-start`, `load-progress`, `loaded`, `error`, `load-abort`, `load-timeout`, `annotation-error`, `update:annotations`, `annotations-change`, `history-change`, `navigation-change`, and `update:settingsOpen`.
 - **Slots:** `loading`, `empty`, and `error`. The error slot receives `{ error, retry }`. The default error display includes a Retry button.
-- **Methods:** `load(source?)`, `retry()`, `reset()`, `fitToContainer()`, `setSlice(oneBasedIndex)`, `getAnnotations()`, `setAnnotations(snapshot)`, `getHistoryState()`, `getStatus()`, and `getApp()`.
+- **Methods:** `load(source?)`, `retry()`, `reset()`, `fitToContainer()`, `setSlice(oneBasedIndex)`, `setFrame(oneBasedIndex)`, `getNavigationState()`, `getAnnotations()`, `setAnnotations(snapshot)`, `getHistoryState()`, `getStatus()`, and `getApp()`.
+
+Slice and frame positions are 1-based. For 4D data, `setSlice()` changes DWV's spatial scroll dimension without changing the temporal frame, while `setFrame()` changes the fourth dimension without changing the spatial slice. Invalid and out-of-range positions are ignored. `navigation-change` and `getNavigationState()` provide `{ slice, sliceCount, frame, frameCount }`; single-frame data always reports frame 1 of 1 and hides the frame controls.
 
 `load()` now resolves when that specific request reaches a terminal state. Its `DicomLoadResult` status is `loaded`, `error`, `aborted`, `timeout`, `empty`, or `superseded`. Starting another load resolves the earlier promise as `superseded`; late events from the earlier DWV data ID are ignored. Results resolve rather than reject, so event-driven consumers do not also need an unhandled-rejection path.
 
