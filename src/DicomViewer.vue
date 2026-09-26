@@ -40,6 +40,12 @@
                 <label>Color <input v-model="colour" type="color" @input="applyTool" /></label>
                 <button :disabled="!historyState.canUndo" @click="undo">Undo</button><button :disabled="!historyState.canRedo" @click="redo">Redo</button>
                 <button @click="app?.fitToContainer()">Fit</button>
+                <div v-if="selectedAnnotation" class="dicom-viewer__annotation-editor">
+                    <strong>Selected mark</strong>
+                    <label>Color <input :value="selectedAnnotation.colour" type="color" @change="updateSelectedAnnotation({ colour: ($event.target as HTMLInputElement).value })" /></label>
+                    <label>Label <input :value="selectedAnnotation.label" type="text" maxlength="4096" @change="updateSelectedAnnotation({ label: ($event.target as HTMLInputElement).value })" /></label>
+                    <button type="button" @click="deleteSelectedAnnotation">Delete mark</button>
+                </div>
                 <div class="dicom-viewer__navigation">
                     <div class="dicom-viewer__navigation-axis">
                         <button :disabled="navigation.slice <= 1" aria-label="Previous slice" @click="setSlice(navigation.slice - 1)">‹</button>
@@ -70,7 +76,7 @@ let nextViewerId = 0
 </script>
 
 <script setup lang="ts">
-import type { App } from 'dwv'
+import type { Annotation, App } from 'dwv'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
     exportGroups,
@@ -84,6 +90,13 @@ import {
     type AnnotationChangeDetails,
     type AnnotationChangeReason
 } from './annotation-history'
+import {
+    createAnnotationSelection,
+    deleteAnnotation,
+    editAnnotation,
+    type DicomAnnotationEdit,
+    type DicomAnnotationSelection
+} from './annotation-editing'
 import type { DwvModule } from './dwv-loader'
 import { loadDwv } from './dwv-loader'
 import { isZipFile } from './file-utils'
@@ -123,6 +136,7 @@ const emit = defineEmits<{
     'annotations-change': [annotations: DicomAnnotations, details: AnnotationChangeDetails]
     'history-change': [history: AnnotationChangeDetails['history']]
     'annotation-error': [error: Error]
+    'annotation-selection-change': [selection: DicomAnnotationSelection | null]
     'navigation-change': [navigation: DicomNavigationState]
     'update:settingsOpen': [open: boolean]
     'load-start': [event: unknown]
@@ -150,6 +164,7 @@ const panelOpen = ref(props.settingsOpen)
 const selectedTool = ref('Scroll')
 const colour = ref('#ffff80')
 const navigation = ref<DicomNavigationState>({ slice: 1, sliceCount: 1, frame: 1, frameCount: 1 })
+const selectedAnnotation = ref<DicomAnnotationSelection | null>(null)
 const history = new AnnotationHistoryController()
 const historyState = ref(history.getState())
 function syncHistory() {
@@ -173,6 +188,52 @@ let restoring = false
 let lastEmitted = ''
 let app: App | null = null
 const annotationEvents = ['annotationadd', 'annotationupdate', 'annotationremove']
+
+function setSelectedAnnotation(selection: DicomAnnotationSelection | null): void {
+    if (
+        selection?.uid === selectedAnnotation.value?.uid &&
+        selection?.dataId === selectedAnnotation.value?.dataId &&
+        selection?.colour === selectedAnnotation.value?.colour &&
+        selection?.label === selectedAnnotation.value?.label
+    ) return
+    if (selection === null && selectedAnnotation.value === null) return
+    selectedAnnotation.value = selection
+    emit('annotation-selection-change', selection)
+}
+
+function onAnnotationSelect(event: unknown): void {
+    if (!app || typeof event !== 'object' || event === null) return
+    const { annotationid, dataid } = event as { annotationid?: unknown; dataid?: unknown }
+    if (typeof annotationid !== 'string' || typeof dataid !== 'string') return
+    const mark = app.getData(dataid)?.annotationGroup?.getList().find(item => item.trackingUid === annotationid)
+    if (mark) setSelectedAnnotation(createAnnotationSelection(dataid, mark))
+}
+
+function selectedDrawController() {
+    const selection = selectedAnnotation.value
+    if (!app || !selection) return
+    return app.getDrawLayersByDataId(selection.dataId)[0]?.getDrawController()
+}
+
+function updateSelectedAnnotation(edit: DicomAnnotationEdit): void {
+    if (!app || !selectedAnnotation.value) return
+    const controller = selectedDrawController()
+    if (!controller) return
+    try {
+        setSelectedAnnotation(editAnnotation(controller, selectedAnnotation.value, edit, app.addToUndoStack))
+    } catch (error) { emit('annotation-error', toError(error)) }
+}
+
+function deleteSelectedAnnotation(): void {
+    if (!app || !selectedAnnotation.value) return
+    const controller = selectedDrawController()
+    if (!controller) return
+    try { deleteAnnotation(controller, selectedAnnotation.value, app.addToUndoStack) }
+    catch (error) { emit('annotation-error', toError(error)) }
+}
+
+const getSelectedAnnotation = (): DicomAnnotationSelection | null =>
+    selectedAnnotation.value ? { ...selectedAnnotation.value } : null
 
 function toggleSettings() {
     panelOpen.value = !panelOpen.value
@@ -235,9 +296,20 @@ function emitAnnotationsChange(reason: AnnotationChangeReason, updateModel: bool
     if (updateModel) emit('update:annotations', snapshot)
     emit('annotations-change', snapshot, { reason, history: historyState.value })
 }
-function annotationsChanged() {
+function annotationsChanged(event?: unknown) {
     if (restoring) return
-    try { emitAnnotationsChange(historyAction ?? 'draw', true) }
+    try {
+        if (selectedAnnotation.value && typeof event === 'object' && event !== null) {
+            const { type, data } = event as { type?: unknown; data?: Annotation }
+            if (data?.trackingUid === selectedAnnotation.value.uid) {
+                if (type === 'annotationremove') setSelectedAnnotation(null)
+                else if (typeof data.colour === 'string' && typeof data.textExpr === 'string') {
+                    setSelectedAnnotation(createAnnotationSelection(selectedAnnotation.value.dataId, data))
+                }
+            }
+        }
+        emitAnnotationsChange(historyAction ?? 'draw', true)
+    }
     catch (error) { emit('annotation-error', toError(error)) }
 }
 function replaceAnnotations(snapshot: DicomAnnotations | null): void {
@@ -262,6 +334,7 @@ function replaceAnnotations(snapshot: DicomAnnotations | null): void {
         includesImageUid: uid => view.includesImageUid(uid),
         frameCount
     }, groups => {
+        if (selectedAnnotation.value) setSelectedAnnotation(null)
         for (const group of groups) for (const mark of group.getList()) mark.setViewController(view)
         restoring = true
         try {
@@ -380,6 +453,7 @@ const clearViewer = (): void => {
     hasSource.value = false
     canRetry.value = false
     navigation.value = { slice: 1, sliceCount: 1, frame: 1, frameCount: 1 }
+    if (selectedAnnotation.value) setSelectedAnnotation(null)
     status.value = 'idle'
     error.value = null
 }
@@ -449,6 +523,7 @@ const initialise = async (): Promise<void> => {
     app.addEventListener('loadprogress', onLoadProgress)
     app.addEventListener('load', onLoadEnd)
     app.addEventListener('positionchange', syncNavigation)
+    app.addEventListener('annotationselect', onAnnotationSelect)
     app.addEventListener('undoadd', syncHistory)
     for (const event of annotationEvents) app.addEventListener(event, annotationsChanged)
     app.addEventListener('error', onLoadError)
@@ -495,6 +570,7 @@ onBeforeUnmount(() => {
         app.removeEventListener('loadprogress', onLoadProgress)
         app.removeEventListener('load', onLoadEnd)
         app.removeEventListener('positionchange', syncNavigation)
+        app.removeEventListener('annotationselect', onAnnotationSelect)
         app.removeEventListener('undoadd', syncHistory)
         for (const event of annotationEvents) app.removeEventListener(event, annotationsChanged)
         app.removeEventListener('error', onLoadError)
@@ -516,6 +592,9 @@ defineExpose({
     getAnnotations,
     setAnnotations,
     getHistoryState: () => history.getState(),
+    getSelectedAnnotation,
+    updateSelectedAnnotation,
+    deleteSelectedAnnotation,
     getNavigationState,
     setSlice,
     setFrame
@@ -560,6 +639,9 @@ defineExpose({
 .dicom-viewer__settings button, .dicom-viewer__toggle, .dicom-viewer__settings select { border: 1px solid #64748b; border-radius: 5px; padding: 6px 9px; background: #1e293b; color: white; cursor: pointer; font: inherit; }
 .dicom-viewer__settings button:disabled { opacity: .4; cursor: default; }
 .dicom-viewer__settings input[type=color] { width: 36px; height: 28px; padding: 0; border: 0; }
+.dicom-viewer__annotation-editor { display: flex; width: 100%; align-items: center; gap: 8px; }
+.dicom-viewer__annotation-editor label { flex: 0 1 auto; }
+.dicom-viewer__annotation-editor input[type=text] { min-width: 12rem; }
 .dicom-viewer__navigation { display: grid; width: 100%; gap: 8px; }
 .dicom-viewer__navigation-axis { display: flex; width: 100%; align-items: center; gap: 8px; }
 .dicom-viewer__navigation-axis input[type=range] { flex: 1; min-width: 40px; }
