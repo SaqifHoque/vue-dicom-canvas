@@ -6,7 +6,7 @@ export interface AnnotationHistoryState {
     canRedo: boolean
 }
 
-export type AnnotationChangeReason = 'draw' | 'undo' | 'redo' | 'replace' | 'clear' | 'prop'
+export type AnnotationChangeReason = 'draw' | 'edit' | 'delete' | 'undo' | 'redo' | 'replace' | 'clear' | 'prop'
 
 export interface AnnotationChangeDetails {
     reason: AnnotationChangeReason

@@ -98,7 +98,9 @@ The viewer provides data; your application owns persistence.
 2. Save that value as JSON through your backend, together with the study/series identifier.
 3. Retrieve the JSON and supply it with the matching DICOM source to restore the marks.
 
-The viewer emits `update:annotations` for viewer-originated drawing, undo, redo, and imperative replacement changes. Every successful state change emits `annotations-change` with the snapshot and `{ reason, history }`; reasons are `draw`, `undo`, `redo`, `replace`, `clear`, or `prop`. Reactive prop restores use the `prop` reason without echoing `update:annotations`. The separate `history-change` event reports `{ index, floor, ceiling, canUndo, canRedo }` whenever availability changes.
+The viewer emits `update:annotations` for viewer-originated drawing, editing, deletion, undo, redo, and imperative replacement changes. Every successful state change emits `annotations-change` with the snapshot and `{ reason, history }`; reasons are `draw`, `edit`, `delete`, `undo`, `redo`, `replace`, `clear`, or `prop`. Reactive prop restores use the `prop` reason without echoing `update:annotations`. The separate `history-change` event reports `{ index, floor, ceiling, canUndo, canRedo }` whenever availability changes.
+
+Select an existing mark while a drawing tool is active to edit its color or label, or delete it, from the built-in controls. Selection emits `annotation-selection-change` with `{ uid, dataId, colour, label }`. The same operations are available through `getSelectedAnnotation()`, `updateSelectedAnnotation(edit)`, and `deleteSelectedAnnotation()`. Edits and deletion use DWV's undo stack and are reflected in exported annotation snapshots.
 
 A template ref exposes `getAnnotations()`, `setAnnotations(snapshot)`, and `getHistoryState()`. Pass `null` to the setter to clear marks. Call the setter after `loaded`; the prop may be supplied before loading and is applied when the image is ready.
 
@@ -130,9 +132,9 @@ Snapshots use this package's versioned JSON format, containing DWV DICOM SR elem
 
 ### Events, slots, and methods
 
-- **Events:** `load-start`, `load-progress`, `loaded`, `error`, `load-abort`, `load-timeout`, `annotation-error`, `update:annotations`, `annotations-change`, `history-change`, `navigation-change`, and `update:settingsOpen`.
+- **Events:** `load-start`, `load-progress`, `loaded`, `error`, `load-abort`, `load-timeout`, `annotation-error`, `annotation-selection-change`, `update:annotations`, `annotations-change`, `history-change`, `navigation-change`, and `update:settingsOpen`.
 - **Slots:** `loading`, `empty`, and `error`. The error slot receives `{ error, retry }`. The default error display includes a Retry button.
-- **Methods:** `load(source?)`, `retry()`, `reset()`, `fitToContainer()`, `setSlice(oneBasedIndex)`, `setFrame(oneBasedIndex)`, `getNavigationState()`, `getAnnotations()`, `setAnnotations(snapshot)`, `getHistoryState()`, `getStatus()`, and `getApp()`.
+- **Methods:** `load(source?)`, `retry()`, `reset()`, `fitToContainer()`, `setSlice(oneBasedIndex)`, `setFrame(oneBasedIndex)`, `getNavigationState()`, `getAnnotations()`, `setAnnotations(snapshot)`, `getSelectedAnnotation()`, `updateSelectedAnnotation(edit)`, `deleteSelectedAnnotation()`, `getHistoryState()`, `getStatus()`, and `getApp()`.
 
 Slice and frame positions are 1-based. For 4D data, `setSlice()` changes DWV's spatial scroll dimension without changing the temporal frame, while `setFrame()` changes the fourth dimension without changing the spatial slice. Invalid and out-of-range positions are ignored. `navigation-change` and `getNavigationState()` provide `{ slice, sliceCount, frame, frameCount }`; single-frame data always reports frame 1 of 1 and hides the frame controls.
 
