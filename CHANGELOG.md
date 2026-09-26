@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Annotation selection and editing
+
+- Track the selected mark through a typed event and exposed component API.
+- Add undoable color, label, and delete controls for the selected mark.
+- Persist edits and deletion through annotation export and restoration.
+
 ## Unreleased — Slice and frame navigation
 
 - Model DWV's spatial scroll dimension separately from the optional temporal frame dimension.

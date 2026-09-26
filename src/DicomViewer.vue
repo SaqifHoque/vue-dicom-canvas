@@ -172,6 +172,7 @@ function syncHistory() {
     emit('history-change', historyState.value)
 }
 let historyAction: Extract<AnnotationChangeReason, 'undo' | 'redo'> | null = null
+let annotationAction: Extract<AnnotationChangeReason, 'edit' | 'delete'> | null = null
 function undo() {
     if (!historyState.value.canUndo) return
     historyAction = 'undo'
@@ -220,16 +221,22 @@ function updateSelectedAnnotation(edit: DicomAnnotationEdit): void {
     const controller = selectedDrawController()
     if (!controller) return
     try {
+        annotationAction = 'edit'
         setSelectedAnnotation(editAnnotation(controller, selectedAnnotation.value, edit, app.addToUndoStack))
     } catch (error) { emit('annotation-error', toError(error)) }
+    finally { annotationAction = null }
 }
 
 function deleteSelectedAnnotation(): void {
     if (!app || !selectedAnnotation.value) return
     const controller = selectedDrawController()
     if (!controller) return
-    try { deleteAnnotation(controller, selectedAnnotation.value, app.addToUndoStack) }
+    try {
+        annotationAction = 'delete'
+        deleteAnnotation(controller, selectedAnnotation.value, app.addToUndoStack)
+    }
     catch (error) { emit('annotation-error', toError(error)) }
+    finally { annotationAction = null }
 }
 
 const getSelectedAnnotation = (): DicomAnnotationSelection | null =>
@@ -308,7 +315,7 @@ function annotationsChanged(event?: unknown) {
                 }
             }
         }
-        emitAnnotationsChange(historyAction ?? 'draw', true)
+        emitAnnotationsChange(historyAction ?? annotationAction ?? 'draw', true)
     }
     catch (error) { emit('annotation-error', toError(error)) }
 }

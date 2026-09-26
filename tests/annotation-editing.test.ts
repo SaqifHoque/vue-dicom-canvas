@@ -6,12 +6,21 @@ import {
     deleteAnnotation,
     editAnnotation
 } from '../src/annotation-editing'
+import { exportGroups, importGroups } from '../src/annotation-utils'
 
 const createController = () => {
     const annotation = new dwv.Annotation()
     annotation.colour = '#112233'
     annotation.textExpr = 'Original label'
+    annotation.referencedSopInstanceUID = '2.25.3'
+    annotation.referencedSopClassUID = '1.2.840.10008.5.1.4.1.1.7'
+    annotation.mathShape = new dwv.Rectangle(new dwv.Point2D(10, 20), new dwv.Point2D(40, 70))
     const group = new dwv.AnnotationGroup([annotation])
+    group.setMetaValue('Modality', 'SR')
+    group.setMetaValue('StudyInstanceUID', '2.25.1')
+    group.setMetaValue('CurrentRequestedProcedureEvidenceSequence', { value: [{
+        StudyInstanceUID: '2.25.1', ReferencedSeriesSequence: { value: [{ SeriesInstanceUID: '2.25.2' }] }
+    }] })
     return { annotation, group, controller: new dwv.DrawController(group) }
 }
 
@@ -69,5 +78,27 @@ describe('annotation editing', () => {
 
         group.remove(annotation.trackingUid)
         assert.throws(() => deleteAnnotation(controller, selection, () => undefined), /no longer available/)
+    })
+
+    it('persists edits and deletion through exported snapshots and restoration', () => {
+        const { annotation, group, controller } = createController()
+        const commands: dwv.Command[] = []
+        const selection = createAnnotationSelection('annotation-data', annotation)
+
+        editAnnotation(controller, selection, {
+            colour: '#aabbcc',
+            label: 'Persisted label'
+        }, command => commands.push(command))
+        let restored = importGroups(exportGroups([group], dwv), dwv)[0]!.getList()[0]!
+        assert.equal(restored.colour, '#aabbcc')
+        assert.equal(restored.textExpr, 'Persisted label')
+
+        deleteAnnotation(controller, createAnnotationSelection('annotation-data', annotation), command => commands.push(command))
+        assert.deepEqual(exportGroups([group], dwv).groups, [])
+
+        commands.at(-1)!.undo()
+        restored = importGroups(exportGroups([group], dwv), dwv)[0]!.getList()[0]!
+        assert.equal(restored.trackingUid, annotation.trackingUid)
+        assert.equal(restored.textExpr, 'Persisted label')
     })
 })
