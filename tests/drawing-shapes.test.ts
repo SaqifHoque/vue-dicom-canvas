@@ -18,7 +18,7 @@ describe('drawing shape configuration', () => {
 
     it('describes multi-step interactions accurately', () => {
         assert.deepEqual(
-            drawingShapeDefinitions.filter(shape => shape.interaction !== 'drag'),
+            drawingShapeDefinitions.filter(shape => shape.interaction !== 'drag').map(({ name, label, interaction }) => ({ name, label, interaction })),
             [
                 { name: 'Protractor', label: 'Angle', interaction: 'three-point' },
                 { name: 'ROI', label: 'Polygon / freehand ROI', interaction: 'multi-point' }

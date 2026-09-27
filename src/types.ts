@@ -8,6 +8,8 @@ export interface DicomViewerProps {
     settingsOpen?: boolean
     /** DWV tools configured at mount; keep this object stable. */
     tools?: Record<string, import('dwv').ToolConfig>
+    /** Built-in DWV annotation shapes shown in the tool selector; read at mount. */
+    drawingShapes?: readonly import('./drawing-shapes').DicomDrawingShape[]
     source?: DicomSource
     viewerId?: string
     width?: string | number

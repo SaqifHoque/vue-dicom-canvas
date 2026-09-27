@@ -1,11 +1,11 @@
 export const drawingShapeDefinitions = Object.freeze([
-    { name: 'Ruler', label: 'Ruler', interaction: 'drag' },
-    { name: 'Rectangle', label: 'Rectangle', interaction: 'drag' },
-    { name: 'Ellipse', label: 'Ellipse', interaction: 'drag' },
-    { name: 'Circle', label: 'Circle', interaction: 'drag' },
-    { name: 'Arrow', label: 'Arrow', interaction: 'drag' },
-    { name: 'Protractor', label: 'Angle', interaction: 'three-point' },
-    { name: 'ROI', label: 'Polygon / freehand ROI', interaction: 'multi-point' }
+    { name: 'Ruler', label: 'Ruler', interaction: 'drag', instruction: 'Drag between two points.' },
+    { name: 'Rectangle', label: 'Rectangle', interaction: 'drag', instruction: 'Drag between opposite corners.' },
+    { name: 'Ellipse', label: 'Ellipse', interaction: 'drag', instruction: 'Drag to set the ellipse bounds.' },
+    { name: 'Circle', label: 'Circle', interaction: 'drag', instruction: 'Drag from the centre to the edge.' },
+    { name: 'Arrow', label: 'Arrow', interaction: 'drag', instruction: 'Drag from the tail to the point.' },
+    { name: 'Protractor', label: 'Angle', interaction: 'three-point', instruction: 'Choose three points to measure an angle.' },
+    { name: 'ROI', label: 'Polygon / freehand ROI', interaction: 'multi-point', instruction: 'Add boundary points and double-click to finish.' }
 ] as const)
 
 export type DicomDrawingShape = typeof drawingShapeDefinitions[number]['name']
