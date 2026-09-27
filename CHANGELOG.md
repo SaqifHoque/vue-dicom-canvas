@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Additional drawing shapes
+
+- Add configurable circle, three-point angle, and multi-point polygon/ROI tools.
+- Show concise interaction guidance for each drawing shape.
+- Verify circle, protractor, and ROI geometry through annotation export and restoration.
+
 ## Unreleased — Annotation selection and editing
 
 - Track the selected mark through a typed event and exposed component API.

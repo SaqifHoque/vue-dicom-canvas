@@ -9,7 +9,7 @@ Vue DICOM Canvas wraps [DWV](https://github.com/ivmartel/dwv) in a typed Vue com
 ## Features
 
 - Slice slider and previous/next navigation.
-- Ruler, rectangle, ellipse, and arrow annotations with a color picker.
+- Ruler, rectangle, ellipse, circle, arrow, angle, and polygon/ROI annotations with a color picker.
 - Undo/redo, zoom/pan, window/level adjustment, and fit-to-container.
 - Settings overlay with an accessible gear toggle.
 - Annotation snapshots that retain image/frame references, geometry, colors, and labels.
@@ -124,6 +124,7 @@ Snapshots use this package's versioned JSON format, containing DWV DICOM SR elem
 | `ariaLabel` | `DICOM image viewer` | Accessible viewer label. |
 | `viewerId` | generated | Unique DOM identifier; keep stable after mount. |
 | `tools` | built-in tools | DWV tool configuration overrides, read at mount. |
+| `drawingShapes` | all supported shapes | Built-in drawing shapes shown in the selector, read at mount. |
 | `maxSources` | `2000` | Maximum files or URLs per load. |
 | `maxFileSizeBytes` | `536870912` | Maximum individual local file size. |
 | `maxTotalFileSizeBytes` | `2147483648` | Maximum combined local file size. |
@@ -137,6 +138,8 @@ Snapshots use this package's versioned JSON format, containing DWV DICOM SR elem
 - **Methods:** `load(source?)`, `retry()`, `reset()`, `fitToContainer()`, `setSlice(oneBasedIndex)`, `setFrame(oneBasedIndex)`, `getNavigationState()`, `getAnnotations()`, `setAnnotations(snapshot)`, `getSelectedAnnotation()`, `updateSelectedAnnotation(edit)`, `deleteSelectedAnnotation()`, `getHistoryState()`, `getStatus()`, and `getApp()`.
 
 Slice and frame positions are 1-based. For 4D data, `setSlice()` changes DWV's spatial scroll dimension without changing the temporal frame, while `setFrame()` changes the fourth dimension without changing the spatial slice. Invalid and out-of-range positions are ignored. `navigation-change` and `getNavigationState()` provide `{ slice, sliceCount, frame, frameCount }`; single-frame data always reports frame 1 of 1 and hides the frame controls.
+
+The angle tool uses DWV's `Protractor` factory and completes after three points. **Polygon / freehand ROI** uses DWV's multi-point `ROI` factory: add boundary points and double-click to finish. DWV 0.36 does not provide a separate continuous freehand factory, so the viewer does not claim one. Circle, angle, and ROI geometry round-trip through the same versioned annotation snapshot format as the original shapes. Use the `drawingShapes` prop to limit the selector to an ordered subset of `Ruler`, `Rectangle`, `Ellipse`, `Circle`, `Arrow`, `Protractor`, and `ROI`.
 
 `load()` now resolves when that specific request reaches a terminal state. Its `DicomLoadResult` status is `loaded`, `error`, `aborted`, `timeout`, `empty`, or `superseded`. Starting another load resolves the earlier promise as `superseded`; late events from the earlier DWV data ID are ignored. Results resolve rather than reject, so event-driven consumers do not also need an unhandled-rejection path.
 

@@ -44,6 +44,42 @@ describe('annotation persistence', () => {
         assert.ok(restored.mathShape instanceof dwv.Rectangle)
         assert.equal(restored.mathShape.getEnd().getY(), 70)
     })
+
+    it('round trips circle, angle, and polygon ROI geometry', () => {
+        const group = createGroup()
+        for (const mark of [...group.getList()]) group.remove(mark.trackingUid)
+        const shapes = [
+            new dwv.Circle(new dwv.Point2D(25, 30), 12),
+            new dwv.Protractor([
+                new dwv.Point2D(10, 20),
+                new dwv.Point2D(30, 40),
+                new dwv.Point2D(50, 20)
+            ]),
+            new dwv.ROI([
+                new dwv.Point2D(5, 5),
+                new dwv.Point2D(40, 5),
+                new dwv.Point2D(30, 35),
+                new dwv.Point2D(5, 5)
+            ])
+        ]
+        for (const [index, shape] of shapes.entries()) {
+            const mark = new dwv.Annotation()
+            mark.referencedSopInstanceUID = '2.25.3'
+            mark.referencedSopClassUID = '1.2.840.10008.5.1.4.1.1.7'
+            mark.mathShape = shape
+            mark.colour = '#123456'
+            mark.textExpr = `Shape ${index + 1}`
+            group.add(mark)
+        }
+
+        const restored = importGroups(exportGroups([group], dwv), dwv)[0]!.getList()
+        assert.ok(restored[0]!.mathShape instanceof dwv.Circle)
+        assert.equal(restored[0]!.mathShape.getRadius(), 12)
+        assert.ok(restored[1]!.mathShape instanceof dwv.Protractor)
+        assert.equal(restored[1]!.mathShape.getLength(), 3)
+        assert.ok(restored[2]!.mathShape instanceof dwv.ROI)
+        assert.equal(restored[2]!.mathShape.getLength(), 4)
+    })
     it('supports clearing and rejects unsupported versions', () => {
         assert.deepEqual(importGroups({ version: 1, groups: [] }, dwv), [])
         assert.throws(() => importGroups({ version: 2, groups: [] } as never, dwv))

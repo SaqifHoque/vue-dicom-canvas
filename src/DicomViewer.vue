@@ -35,8 +35,10 @@
             <div v-show="panelOpen" :id="`${containerId}-settings`" class="dicom-viewer__settings" @pointerdown.stop @wheel.stop>
                 <label>Tool <select v-model="selectedTool" @change="applyTool">
                     <option value="Scroll">Scroll slices</option><option value="ZoomAndPan">Zoom / pan</option>
-                    <option value="WindowLevel">Window / level</option><option>Ruler</option><option>Rectangle</option><option>Ellipse</option><option>Arrow</option>
+                    <option value="WindowLevel">Window / level</option>
+                    <option v-for="shape in enabledDrawingShapeDefinitions" :key="shape.name" :value="shape.name">{{ shape.label }}</option>
                 </select></label>
+                <small v-if="activeDrawingShape" class="dicom-viewer__tool-help">{{ activeDrawingShape.instruction }}</small>
                 <label>Color <input v-model="colour" type="color" @input="applyTool" /></label>
                 <button :disabled="!historyState.canUndo" @click="undo">Undo</button><button :disabled="!historyState.canRedo" @click="redo">Redo</button>
                 <button @click="app?.fitToContainer()">Fit</button>
@@ -100,6 +102,12 @@ import {
 import type { DwvModule } from './dwv-loader'
 import { loadDwv } from './dwv-loader'
 import { isZipFile } from './file-utils'
+import {
+    defaultDrawingShapes,
+    drawingShapeDefinitions,
+    isDicomDrawingShape,
+    normaliseDrawingShapes
+} from './drawing-shapes'
 import { LoadSessionController, type DicomLoadResult, type DicomLoadSession } from './load-session'
 import {
     createNavigationModel,
@@ -115,6 +123,7 @@ const props = withDefaults(
     {
         source: null,
         annotations: null,
+        drawingShapes: () => defaultDrawingShapes,
         showControls: true,
         settingsOpen: true,
         viewerId: '',
@@ -162,6 +171,9 @@ const viewerStyle = computed(() => ({
 let dwv: DwvModule | null = null
 const panelOpen = ref(props.settingsOpen)
 const selectedTool = ref('Scroll')
+const enabledDrawingShapes = normaliseDrawingShapes(props.drawingShapes)
+const enabledDrawingShapeDefinitions = drawingShapeDefinitions.filter(shape => enabledDrawingShapes.includes(shape.name))
+const activeDrawingShape = computed(() => enabledDrawingShapeDefinitions.find(shape => shape.name === selectedTool.value))
 const colour = ref('#ffff80')
 const navigation = ref<DicomNavigationState>({ slice: 1, sliceCount: 1, frame: 1, frameCount: 1 })
 const selectedAnnotation = ref<DicomAnnotationSelection | null>(null)
@@ -286,7 +298,7 @@ const setFrame = (value: number): void => setNavigation('frame', value)
 const getNavigationState = (): DicomNavigationState => ({ ...navigation.value })
 function applyTool() {
     if (!app || status.value !== 'ready') return
-    const drawing = ['Ruler', 'Rectangle', 'Ellipse', 'Arrow'].includes(selectedTool.value)
+    const drawing = isDicomDrawingShape(selectedTool.value) && enabledDrawingShapes.includes(selectedTool.value)
     app.setTool(drawing ? 'Draw' : selectedTool.value)
     if (drawing) app.setToolFeatures({ shapeName: selectedTool.value, shapeColour: colour.value })
 }
@@ -524,7 +536,7 @@ const initialise = async (): Promise<void> => {
 
     app = new App()
     const options = new AppOptions({ '*': [new ViewConfig(containerId)] })
-    options.tools = { Scroll: new ToolConfig(), ZoomAndPan: new ToolConfig(), WindowLevel: new ToolConfig(), Draw: new ToolConfig(['Ruler', 'Rectangle', 'Ellipse', 'Arrow']), ...props.tools }
+    options.tools = { Scroll: new ToolConfig(), ZoomAndPan: new ToolConfig(), WindowLevel: new ToolConfig(), Draw: new ToolConfig(enabledDrawingShapes), ...props.tools }
     app.init(options)
     app.addEventListener('loadstart', onLoadStart)
     app.addEventListener('loadprogress', onLoadProgress)
@@ -646,6 +658,7 @@ defineExpose({
 .dicom-viewer__settings button, .dicom-viewer__toggle, .dicom-viewer__settings select { border: 1px solid #64748b; border-radius: 5px; padding: 6px 9px; background: #1e293b; color: white; cursor: pointer; font: inherit; }
 .dicom-viewer__settings button:disabled { opacity: .4; cursor: default; }
 .dicom-viewer__settings input[type=color] { width: 36px; height: 28px; padding: 0; border: 0; }
+.dicom-viewer__tool-help { color: #cbd5e1; }
 .dicom-viewer__annotation-editor { display: flex; width: 100%; align-items: center; gap: 8px; }
 .dicom-viewer__annotation-editor label { flex: 0 1 auto; }
 .dicom-viewer__annotation-editor input[type=text] { min-width: 12rem; }
