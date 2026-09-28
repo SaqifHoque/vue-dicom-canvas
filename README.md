@@ -102,6 +102,8 @@ The viewer emits `update:annotations` for viewer-originated drawing, editing, de
 
 Select an existing mark while a drawing tool is active to edit its color or label, or delete it, from the built-in controls. Selection emits `annotation-selection-change` with `{ uid, dataId, colour, label }`. The same operations are available through `getSelectedAnnotation()`, `updateSelectedAnnotation(edit)`, and `deleteSelectedAnnotation()`. Edits and deletion use DWV's undo stack and are reflected in exported annotation snapshots.
 
+Use **Show marks** or `v-model:annotations-visible` to hide or show annotation layers without changing the saved snapshot. Set `read-only` for review: drawing choices, undo/redo, editing, deletion, and imperative `setAnnotations()` are blocked, while slice navigation, zoom/pan, window/level, and incoming `annotations` prop updates still work. Switching `read-only` or visibility at runtime moves an active drawing tool back to Scroll. `getApp()` exposes the underlying DWV instance; callers using it directly must enforce their own review policy.
+
 A template ref exposes `getAnnotations()`, `setAnnotations(snapshot)`, and `getHistoryState()`. Pass `null` to the setter to clear marks. Call the setter after `loaded`; the prop may be supplied before loading and is applied when the image is ready.
 
 Restoring or clearing annotations starts a new undo/redo boundary. Edits made before that replacement cannot be reached with the built-in Undo button, while new drawings can be undone and redone normally. Before changing any marks, the viewer validates the snapshot structure and size, then checks its study, image, frame, and shape references against the loaded DICOM data. A failed restore leaves the current marks and history boundary intact. Invalid prop-based restores emit `annotation-error`; invalid imperative restores throw. Resetting the viewer does not erase the parent's saved annotation value.
@@ -116,6 +118,8 @@ Snapshots use this package's versioned JSON format, containing DWV DICOM SR elem
 | --- | --- | --- |
 | `source` | `null` | Local file(s) or remote URL(s). |
 | `annotations` | `null` | Saved snapshot; supports `v-model:annotations`. |
+| `annotationsVisible` | `true` | Show annotation layers; supports `v-model:annotations-visible`. |
+| `readOnly` | `false` | Block viewer-originated annotation changes during review. |
 | `showControls` | `true` | Display the built-in controls. |
 | `settingsOpen` | `true` | Expand the settings panel; supports `v-model:settings-open`. |
 | `width` / `height` | `100%` / `400px` | CSS dimensions; numbers are pixels. |
@@ -133,7 +137,7 @@ Snapshots use this package's versioned JSON format, containing DWV DICOM SR elem
 
 ### Events, slots, and methods
 
-- **Events:** `load-start`, `load-progress`, `loaded`, `error`, `load-abort`, `load-timeout`, `annotation-error`, `annotation-selection-change`, `update:annotations`, `annotations-change`, `history-change`, `navigation-change`, and `update:settingsOpen`.
+- **Events:** `load-start`, `load-progress`, `loaded`, `error`, `load-abort`, `load-timeout`, `annotation-error`, `annotation-selection-change`, `update:annotations`, `update:annotationsVisible`, `annotations-change`, `history-change`, `navigation-change`, and `update:settingsOpen`.
 - **Slots:** `loading`, `empty`, and `error`. The error slot receives `{ error, retry }`. The default error display includes a Retry button.
 - **Methods:** `load(source?)`, `retry()`, `reset()`, `fitToContainer()`, `setSlice(oneBasedIndex)`, `setFrame(oneBasedIndex)`, `getNavigationState()`, `getAnnotations()`, `setAnnotations(snapshot)`, `getSelectedAnnotation()`, `updateSelectedAnnotation(edit)`, `deleteSelectedAnnotation()`, `getHistoryState()`, `getStatus()`, and `getApp()`.
 

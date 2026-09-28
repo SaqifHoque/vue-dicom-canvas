@@ -4,6 +4,10 @@ export type DicomViewerStatus = 'idle' | 'loading' | 'ready' | 'error'
 
 export interface DicomViewerProps {
     annotations?: import('./annotation-utils').DicomAnnotations | null
+    /** Show annotation layers without removing marks from exported snapshots. */
+    annotationsVisible?: boolean
+    /** Prevent viewer-originated annotation changes while allowing navigation and prop restores. */
+    readOnly?: boolean
     showControls?: boolean
     settingsOpen?: boolean
     /** DWV tools configured at mount; keep this object stable. */
