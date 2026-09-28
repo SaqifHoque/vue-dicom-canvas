@@ -36,13 +36,14 @@
                 <label>Tool <select v-model="selectedTool" @change="applyTool">
                     <option value="Scroll">Scroll slices</option><option value="ZoomAndPan">Zoom / pan</option>
                     <option value="WindowLevel">Window / level</option>
-                    <option v-for="shape in enabledDrawingShapeDefinitions" :key="shape.name" :value="shape.name">{{ shape.label }}</option>
+                    <option v-for="shape in enabledDrawingShapeDefinitions" :key="shape.name" :value="shape.name" :disabled="readOnly || !annotationsVisible">{{ shape.label }}</option>
                 </select></label>
                 <small v-if="activeDrawingShape" class="dicom-viewer__tool-help">{{ activeDrawingShape.instruction }}</small>
-                <label>Color <input v-model="colour" type="color" @input="applyTool" /></label>
-                <button :disabled="!historyState.canUndo" @click="undo">Undo</button><button :disabled="!historyState.canRedo" @click="redo">Redo</button>
+                <label>Color <input v-model="colour" type="color" :disabled="readOnly" @input="applyTool" /></label>
+                <label><input v-model="annotationsVisible" type="checkbox" /> Show marks</label>
+                <button :disabled="readOnly || !historyState.canUndo" @click="undo">Undo</button><button :disabled="readOnly || !historyState.canRedo" @click="redo">Redo</button>
                 <button @click="app?.fitToContainer()">Fit</button>
-                <div v-if="selectedAnnotation" class="dicom-viewer__annotation-editor">
+                <div v-if="selectedAnnotation && !readOnly && annotationsVisible" class="dicom-viewer__annotation-editor">
                     <strong>Selected mark</strong>
                     <label>Color <input :value="selectedAnnotation.colour" type="color" @change="updateSelectedAnnotation({ colour: ($event.target as HTMLInputElement).value })" /></label>
                     <label>Label <input :value="selectedAnnotation.label" type="text" maxlength="4096" @change="updateSelectedAnnotation({ label: ($event.target as HTMLInputElement).value })" /></label>
@@ -99,6 +100,7 @@ import {
     type DicomAnnotationEdit,
     type DicomAnnotationSelection
 } from './annotation-editing'
+import { applyAnnotationReviewState, assertAnnotationWritable } from './annotation-review'
 import type { DwvModule } from './dwv-loader'
 import { loadDwv } from './dwv-loader'
 import { isZipFile } from './file-utils'
@@ -123,6 +125,8 @@ const props = withDefaults(
     {
         source: null,
         annotations: null,
+        annotationsVisible: true,
+        readOnly: false,
         drawingShapes: () => defaultDrawingShapes,
         showControls: true,
         settingsOpen: true,
@@ -142,6 +146,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
     'update:annotations': [annotations: DicomAnnotations]
+    'update:annotationsVisible': [visible: boolean]
     'annotations-change': [annotations: DicomAnnotations, details: AnnotationChangeDetails]
     'history-change': [history: AnnotationChangeDetails['history']]
     'annotation-error': [error: Error]
@@ -170,6 +175,8 @@ const viewerStyle = computed(() => ({
 
 let dwv: DwvModule | null = null
 const panelOpen = ref(props.settingsOpen)
+const annotationsVisible = ref(props.annotationsVisible)
+const readOnly = computed(() => props.readOnly)
 const selectedTool = ref('Scroll')
 const enabledDrawingShapes = normaliseDrawingShapes(props.drawingShapes)
 const enabledDrawingShapeDefinitions = drawingShapeDefinitions.filter(shape => enabledDrawingShapes.includes(shape.name))
@@ -186,13 +193,13 @@ function syncHistory() {
 let historyAction: Extract<AnnotationChangeReason, 'undo' | 'redo'> | null = null
 let annotationAction: Extract<AnnotationChangeReason, 'edit' | 'delete'> | null = null
 function undo() {
-    if (!historyState.value.canUndo) return
+    if (readOnly.value || !historyState.value.canUndo) return
     historyAction = 'undo'
     try { app?.undo() }
     finally { historyAction = null; syncHistory() }
 }
 function redo() {
-    if (!historyState.value.canRedo) return
+    if (readOnly.value || !historyState.value.canRedo) return
     historyAction = 'redo'
     try { app?.redo() }
     finally { historyAction = null; syncHistory() }
@@ -215,7 +222,7 @@ function setSelectedAnnotation(selection: DicomAnnotationSelection | null): void
 }
 
 function onAnnotationSelect(event: unknown): void {
-    if (!app || typeof event !== 'object' || event === null) return
+    if (!app || !annotationsVisible.value || typeof event !== 'object' || event === null) return
     const { annotationid, dataid } = event as { annotationid?: unknown; dataid?: unknown }
     if (typeof annotationid !== 'string' || typeof dataid !== 'string') return
     const mark = app.getData(dataid)?.annotationGroup?.getList().find(item => item.trackingUid === annotationid)
@@ -229,6 +236,7 @@ function selectedDrawController() {
 }
 
 function updateSelectedAnnotation(edit: DicomAnnotationEdit): void {
+    assertAnnotationWritable(readOnly.value)
     if (!app || !selectedAnnotation.value) return
     const controller = selectedDrawController()
     if (!controller) return
@@ -240,6 +248,7 @@ function updateSelectedAnnotation(edit: DicomAnnotationEdit): void {
 }
 
 function deleteSelectedAnnotation(): void {
+    assertAnnotationWritable(readOnly.value)
     if (!app || !selectedAnnotation.value) return
     const controller = selectedDrawController()
     if (!controller) return
@@ -298,7 +307,8 @@ const setFrame = (value: number): void => setNavigation('frame', value)
 const getNavigationState = (): DicomNavigationState => ({ ...navigation.value })
 function applyTool() {
     if (!app || status.value !== 'ready') return
-    const drawing = isDicomDrawingShape(selectedTool.value) && enabledDrawingShapes.includes(selectedTool.value)
+    const drawing = !readOnly.value && annotationsVisible.value && isDicomDrawingShape(selectedTool.value) && enabledDrawingShapes.includes(selectedTool.value)
+    if (!drawing && isDicomDrawingShape(selectedTool.value)) selectedTool.value = 'Scroll'
     app.setTool(drawing ? 'Draw' : selectedTool.value)
     if (drawing) app.setToolFeatures({ shapeName: selectedTool.value, shapeColour: colour.value })
 }
@@ -328,6 +338,7 @@ function annotationsChanged(event?: unknown) {
             }
         }
         emitAnnotationsChange(historyAction ?? annotationAction ?? 'draw', true)
+        if (app) applyAnnotationReviewState(app, annotationsVisible.value, readOnly.value)
     }
     catch (error) { emit('annotation-error', toError(error)) }
 }
@@ -370,6 +381,7 @@ function replaceAnnotations(snapshot: DicomAnnotations | null): void {
             if (replacement.created && createdData) {
                 currentApp.addAndRenderAnnotationData(createdData, containerId, layer.getDataId())
             }
+            applyAnnotationReviewState(currentApp, annotationsVisible.value, readOnly.value)
             historyState.value = history.setBoundary(currentApp.getCurrentStackIndex())
             emit('history-change', historyState.value)
             applyTool()
@@ -377,6 +389,7 @@ function replaceAnnotations(snapshot: DicomAnnotations | null): void {
     })
 }
 function setAnnotations(snapshot: DicomAnnotations | null): void {
+    assertAnnotationWritable(readOnly.value)
     replaceAnnotations(snapshot)
     emitAnnotationsChange(snapshot === null ? 'clear' : 'replace', true)
 }
@@ -427,6 +440,7 @@ const onLoadEnd = (event: unknown) => {
     setFrame(1)
     applyTool()
     restoreProvidedAnnotations()
+    if (app) applyAnnotationReviewState(app, annotationsVisible.value, readOnly.value)
     emit('loaded', event)
     loadSessions.settle({ status: 'loaded', event })
 }
@@ -576,6 +590,17 @@ watch(
 )
 
 watch(() => props.settingsOpen, value => { panelOpen.value = value })
+watch(() => props.annotationsVisible, value => { annotationsVisible.value = value })
+watch(annotationsVisible, value => {
+    if (!value) setSelectedAnnotation(null)
+    if (app) applyAnnotationReviewState(app, value, readOnly.value)
+    applyTool()
+    if (value !== props.annotationsVisible) emit('update:annotationsVisible', value)
+})
+watch(readOnly, value => {
+    if (app) applyAnnotationReviewState(app, annotationsVisible.value, value)
+    applyTool()
+})
 watch(() => props.annotations, value => {
     if (status.value === 'ready' && shouldRestoreAnnotationSnapshot(value, lastEmitted)) restoreProvidedAnnotations(true)
 }, { deep: true })
