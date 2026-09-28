@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Annotation review
+
+- Add a Show marks control and reactive `annotationsVisible` prop without changing saved snapshots.
+- Add a reactive `readOnly` prop that blocks viewer annotation mutations while keeping navigation and incoming snapshot updates available.
+- Apply review settings to annotation layers after load and restore.
+
 ## Unreleased — Additional drawing shapes
 
 - Add configurable circle, three-point angle, and multi-point polygon/ROI tools.
