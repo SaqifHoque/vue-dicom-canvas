@@ -13,6 +13,11 @@ export interface DicomAnnotationSummary {
     frameNumber?: number
 }
 
+export interface AnnotationSummarySource {
+    dataId: string
+    annotations: readonly Annotation[]
+}
+
 const shapeFromTrackingId = (trackingId: string): DicomAnnotationSummary['shape'] => {
     const value = trackingId.toLowerCase()
     if (value.includes('protractor')) return 'Protractor'
@@ -47,6 +52,15 @@ export function createAnnotationSummary(
         imageUid: annotation.referencedSopInstanceUID,
         frameNumber: annotation.referencedFrameNumber
     }
+}
+
+export function createAnnotationSummaries(
+    sources: readonly AnnotationSummarySource[],
+    dwv: DwvModule
+): DicomAnnotationSummary[] {
+    return sources.flatMap(source =>
+        source.annotations.map(annotation => createAnnotationSummary(source.dataId, annotation, dwv))
+    )
 }
 
 /** Build a complete index that focuses an annotation while preserving unrelated dimensions. */

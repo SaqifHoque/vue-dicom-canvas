@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Annotation list
+
+- Expose typed annotation summaries and emit `annotation-list-change` as marks change.
+- Add a collapsible mark list that selects annotations and navigates to referenced slices and frames.
+- Keep list selection and deletion synchronized with canvas changes, undo/redo, and snapshot restoration.
+
 ## Unreleased — Annotation review
 
 - Add a Show marks control and reactive `annotationsVisible` prop without changing saved snapshots.

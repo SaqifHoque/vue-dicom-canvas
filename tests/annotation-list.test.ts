@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import * as dwv from 'dwv'
-import { createAnnotationSummary, indexForAnnotation } from '../src/annotation-list'
+import { createAnnotationSummaries, createAnnotationSummary, indexForAnnotation } from '../src/annotation-list'
 import { createNavigationModel } from '../src/navigation'
 
 describe('annotation list', () => {
@@ -29,5 +29,33 @@ describe('annotation list', () => {
         assert.deepEqual(indexForAnnotation([8, 9, 2, 0], [0, 0, 7, 0], model, 3), [8, 9, 7, 2])
         assert.equal(indexForAnnotation([8, 9, 2, 0], [0, 0, 12, 0], model, 3), null)
         assert.equal(indexForAnnotation([8, 9, 2, 0], [0, 0, 7, 0], model, 5), null)
+    })
+
+    it('synchronizes summaries after canvas edits and deletion', () => {
+        const annotation = new dwv.Annotation()
+        annotation.colour = '#112233'
+        annotation.textExpr = 'Original'
+        annotation.referencedSopInstanceUID = '2.25.3'
+        annotation.mathShape = new dwv.Circle(new dwv.Point2D(2, 3), 4)
+        const group = new dwv.AnnotationGroup([annotation])
+        const summaries = () => createAnnotationSummaries([
+            { dataId: 'drawings', annotations: group.getList() }
+        ], dwv)
+
+        assert.equal(summaries()[0]!.label, 'Original')
+        annotation.textExpr = 'Changed on canvas'
+        annotation.colour = '#abcdef'
+        assert.deepEqual(summaries()[0], {
+            uid: annotation.trackingUid,
+            dataId: 'drawings',
+            label: 'Changed on canvas',
+            colour: '#abcdef',
+            shape: 'Circle',
+            imageUid: '2.25.3',
+            frameNumber: undefined
+        })
+
+        group.remove(annotation.trackingUid)
+        assert.deepEqual(summaries(), [])
     })
 })

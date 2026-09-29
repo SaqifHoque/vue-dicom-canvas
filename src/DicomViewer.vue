@@ -58,7 +58,7 @@
                                 :class="{ 'is-selected': selectedAnnotation?.uid === summary.uid }"
                                 :disabled="!annotationsVisible"
                                 :aria-pressed="selectedAnnotation?.uid === summary.uid"
-                                @click="selectAnnotation(summary.uid)"
+                                @click="selectAnnotationFromList(summary.uid)"
                             >
                                 <span class="dicom-viewer__annotation-swatch" :style="{ background: summary.colour }" aria-hidden="true" />
                                 <span>{{ summary.label || summary.shape }}</span>
@@ -120,7 +120,7 @@ import {
     type DicomAnnotationSelection
 } from './annotation-editing'
 import {
-    createAnnotationSummary,
+    createAnnotationSummaries,
     indexForAnnotation,
     type DicomAnnotationSummary
 } from './annotation-list'
@@ -237,11 +237,11 @@ const annotationEvents = ['annotationadd', 'annotationupdate', 'annotationremove
 
 function syncAnnotationSummaries(): void {
     if (!app || !dwv) return
-    const next = app.getDataIds().flatMap(dataId =>
-        app?.getData(dataId)?.annotationGroup?.getList().map(annotation =>
-            createAnnotationSummary(dataId, annotation, dwv!)
-        ) ?? []
-    )
+    const sources = app.getDataIds().flatMap(dataId => {
+        const annotations = app?.getData(dataId)?.annotationGroup?.getList()
+        return annotations ? [{ dataId, annotations }] : []
+    })
+    const next = createAnnotationSummaries(sources, dwv)
     if (JSON.stringify(next) === JSON.stringify(annotationSummaries.value)) return
     annotationSummaries.value = next
     emit('annotation-list-change', next.map(summary => ({ ...summary })))
@@ -292,8 +292,15 @@ function selectAnnotation(uid: string): void {
 }
 
 function deleteAnnotationFromList(uid: string): void {
-    selectAnnotation(uid)
-    deleteSelectedAnnotation()
+    try {
+        selectAnnotation(uid)
+        deleteSelectedAnnotation()
+    } catch (error) { emit('annotation-error', toError(error)) }
+}
+
+function selectAnnotationFromList(uid: string): void {
+    try { selectAnnotation(uid) }
+    catch (error) { emit('annotation-error', toError(error)) }
 }
 
 function onAnnotationSelect(event: unknown): void {

@@ -13,6 +13,7 @@ Vue DICOM Canvas wraps [DWV](https://github.com/ivmartel/dwv) in a typed Vue com
 - Undo/redo, zoom/pan, window/level adjustment, and fit-to-container.
 - Settings overlay with an accessible gear toggle.
 - Annotation snapshots that retain image/frame references, geometry, colors, and labels.
+- A collapsible annotation list that selects marks and jumps to their referenced slice and frame.
 - Vue `v-model:annotations` and imperative export/restore methods.
 - Lazy-loaded imaging engine, typed exports, and ESM/CommonJS builds.
 - Independent slice and temporal-frame navigation with sliders, number inputs, and imperative controls.
@@ -106,6 +107,8 @@ Use **Show marks** or `v-model:annotations-visible` to hide or show annotation l
 
 A template ref exposes `getAnnotations()`, `setAnnotations(snapshot)`, and `getHistoryState()`. Pass `null` to the setter to clear marks. Call the setter after `loaded`; the prop may be supplied before loading and is applied when the image is ready.
 
+`getAnnotationSummaries()` returns lightweight entries with the mark ID, data ID, label, color, shape, image UID, and optional frame number. `selectAnnotation(uid)` selects that mark and navigates to its referenced image and frame. The built-in **Marks** list uses the same state and stays synchronized with drawing, editing, deletion, undo/redo, and restored snapshots. List selection remains available in read-only mode; hidden annotations must be shown before selection.
+
 Restoring or clearing annotations starts a new undo/redo boundary. Edits made before that replacement cannot be reached with the built-in Undo button, while new drawings can be undone and redone normally. Before changing any marks, the viewer validates the snapshot structure and size, then checks its study, image, frame, and shape references against the loaded DICOM data. A failed restore leaves the current marks and history boundary intact. Invalid prop-based restores emit `annotation-error`; invalid imperative restores throw. Resetting the viewer does not erase the parent's saved annotation value.
 
 Snapshots use this package's versioned JSON format, containing DWV DICOM SR elements and appearance information. They are limited to 10 MiB, 100 groups, 1,000 annotations, and 4,096 characters per annotation text. They are not Annotorious JSON. They can include patient/study metadata copied from the DICOM source, so store and protect them as study data. The package does not connect to a database or autosave.
@@ -137,9 +140,9 @@ Snapshots use this package's versioned JSON format, containing DWV DICOM SR elem
 
 ### Events, slots, and methods
 
-- **Events:** `load-start`, `load-progress`, `loaded`, `error`, `load-abort`, `load-timeout`, `annotation-error`, `annotation-selection-change`, `update:annotations`, `update:annotationsVisible`, `annotations-change`, `history-change`, `navigation-change`, and `update:settingsOpen`.
+- **Events:** `load-start`, `load-progress`, `loaded`, `error`, `load-abort`, `load-timeout`, `annotation-error`, `annotation-list-change`, `annotation-selection-change`, `update:annotations`, `update:annotationsVisible`, `annotations-change`, `history-change`, `navigation-change`, and `update:settingsOpen`.
 - **Slots:** `loading`, `empty`, and `error`. The error slot receives `{ error, retry }`. The default error display includes a Retry button.
-- **Methods:** `load(source?)`, `retry()`, `reset()`, `fitToContainer()`, `setSlice(oneBasedIndex)`, `setFrame(oneBasedIndex)`, `getNavigationState()`, `getAnnotations()`, `setAnnotations(snapshot)`, `getSelectedAnnotation()`, `updateSelectedAnnotation(edit)`, `deleteSelectedAnnotation()`, `getHistoryState()`, `getStatus()`, and `getApp()`.
+- **Methods:** `load(source?)`, `retry()`, `reset()`, `fitToContainer()`, `setSlice(oneBasedIndex)`, `setFrame(oneBasedIndex)`, `getNavigationState()`, `getAnnotations()`, `setAnnotations(snapshot)`, `getAnnotationSummaries()`, `selectAnnotation(uid)`, `getSelectedAnnotation()`, `updateSelectedAnnotation(edit)`, `deleteSelectedAnnotation()`, `getHistoryState()`, `getStatus()`, and `getApp()`.
 
 Slice and frame positions are 1-based. For 4D data, `setSlice()` changes DWV's spatial scroll dimension without changing the temporal frame, while `setFrame()` changes the fourth dimension without changing the spatial slice. Invalid and out-of-range positions are ignored. `navigation-change` and `getNavigationState()` provide `{ slice, sliceCount, frame, frameCount }`; single-frame data always reports frame 1 of 1 and hides the frame controls.
 
