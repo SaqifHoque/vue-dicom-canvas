@@ -100,6 +100,7 @@ import {
     type DicomAnnotationEdit,
     type DicomAnnotationSelection
 } from './annotation-editing'
+import { createAnnotationSummary, type DicomAnnotationSummary } from './annotation-list'
 import { applyAnnotationReviewState, assertAnnotationWritable } from './annotation-review'
 import type { DwvModule } from './dwv-loader'
 import { loadDwv } from './dwv-loader'
@@ -151,6 +152,7 @@ const emit = defineEmits<{
     'history-change': [history: AnnotationChangeDetails['history']]
     'annotation-error': [error: Error]
     'annotation-selection-change': [selection: DicomAnnotationSelection | null]
+    'annotation-list-change': [annotations: readonly DicomAnnotationSummary[]]
     'navigation-change': [navigation: DicomNavigationState]
     'update:settingsOpen': [open: boolean]
     'load-start': [event: unknown]
@@ -184,6 +186,7 @@ const activeDrawingShape = computed(() => enabledDrawingShapeDefinitions.find(sh
 const colour = ref('#ffff80')
 const navigation = ref<DicomNavigationState>({ slice: 1, sliceCount: 1, frame: 1, frameCount: 1 })
 const selectedAnnotation = ref<DicomAnnotationSelection | null>(null)
+const annotationSummaries = ref<DicomAnnotationSummary[]>([])
 const history = new AnnotationHistoryController()
 const historyState = ref(history.getState())
 function syncHistory() {
@@ -208,6 +211,21 @@ let restoring = false
 let lastEmitted = ''
 let app: App | null = null
 const annotationEvents = ['annotationadd', 'annotationupdate', 'annotationremove']
+
+function syncAnnotationSummaries(): void {
+    if (!app || !dwv) return
+    const next = app.getDataIds().flatMap(dataId =>
+        app?.getData(dataId)?.annotationGroup?.getList().map(annotation =>
+            createAnnotationSummary(dataId, annotation, dwv!)
+        ) ?? []
+    )
+    if (JSON.stringify(next) === JSON.stringify(annotationSummaries.value)) return
+    annotationSummaries.value = next
+    emit('annotation-list-change', next.map(summary => ({ ...summary })))
+}
+
+const getAnnotationSummaries = (): DicomAnnotationSummary[] =>
+    annotationSummaries.value.map(summary => ({ ...summary }))
 
 function setSelectedAnnotation(selection: DicomAnnotationSelection | null): void {
     if (
@@ -338,6 +356,7 @@ function annotationsChanged(event?: unknown) {
             }
         }
         emitAnnotationsChange(historyAction ?? annotationAction ?? 'draw', true)
+        syncAnnotationSummaries()
         if (app) applyAnnotationReviewState(app, annotationsVisible.value, readOnly.value)
     }
     catch (error) { emit('annotation-error', toError(error)) }
@@ -382,6 +401,7 @@ function replaceAnnotations(snapshot: DicomAnnotations | null): void {
                 currentApp.addAndRenderAnnotationData(createdData, containerId, layer.getDataId())
             }
             applyAnnotationReviewState(currentApp, annotationsVisible.value, readOnly.value)
+            syncAnnotationSummaries()
             historyState.value = history.setBoundary(currentApp.getCurrentStackIndex())
             emit('history-change', historyState.value)
             applyTool()
@@ -483,6 +503,10 @@ const clearViewer = (): void => {
     historyState.value = history.reset()
     emit('history-change', historyState.value)
     lastEmitted = ''
+    if (annotationSummaries.value.length) {
+        annotationSummaries.value = []
+        emit('annotation-list-change', [])
+    }
     hasSource.value = false
     canRetry.value = false
     navigation.value = { slice: 1, sliceCount: 1, frame: 1, frameCount: 1 }
@@ -637,6 +661,7 @@ defineExpose({
     setAnnotations,
     getHistoryState: () => history.getState(),
     getSelectedAnnotation,
+    getAnnotationSummaries,
     updateSelectedAnnotation,
     deleteSelectedAnnotation,
     getNavigationState,
