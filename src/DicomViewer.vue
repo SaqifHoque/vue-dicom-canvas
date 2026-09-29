@@ -49,6 +49,25 @@
                     <label>Label <input :value="selectedAnnotation.label" type="text" maxlength="4096" @change="updateSelectedAnnotation({ label: ($event.target as HTMLInputElement).value })" /></label>
                     <button type="button" @click="deleteSelectedAnnotation">Delete mark</button>
                 </div>
+                <details v-if="annotationSummaries.length" class="dicom-viewer__annotation-list">
+                    <summary>Marks ({{ annotationSummaries.length }})</summary>
+                    <ol>
+                        <li v-for="summary in annotationSummaries" :key="summary.uid">
+                            <button
+                                type="button"
+                                :class="{ 'is-selected': selectedAnnotation?.uid === summary.uid }"
+                                :disabled="!annotationsVisible"
+                                :aria-pressed="selectedAnnotation?.uid === summary.uid"
+                                @click="selectAnnotation(summary.uid)"
+                            >
+                                <span class="dicom-viewer__annotation-swatch" :style="{ background: summary.colour }" aria-hidden="true" />
+                                <span>{{ summary.label || summary.shape }}</span>
+                                <small>{{ summary.shape }}<template v-if="summary.frameNumber"> · frame {{ summary.frameNumber }}</template></small>
+                            </button>
+                            <button v-if="!readOnly" type="button" :disabled="!annotationsVisible" :aria-label="`Delete ${summary.label || summary.shape}`" @click="deleteAnnotationFromList(summary.uid)">Delete</button>
+                        </li>
+                    </ol>
+                </details>
                 <div class="dicom-viewer__navigation">
                     <div class="dicom-viewer__navigation-axis">
                         <button :disabled="navigation.slice <= 1" aria-label="Previous slice" @click="setSlice(navigation.slice - 1)">‹</button>
@@ -100,7 +119,11 @@ import {
     type DicomAnnotationEdit,
     type DicomAnnotationSelection
 } from './annotation-editing'
-import { createAnnotationSummary, type DicomAnnotationSummary } from './annotation-list'
+import {
+    createAnnotationSummary,
+    indexForAnnotation,
+    type DicomAnnotationSummary
+} from './annotation-list'
 import { applyAnnotationReviewState, assertAnnotationWritable } from './annotation-review'
 import type { DwvModule } from './dwv-loader'
 import { loadDwv } from './dwv-loader'
@@ -237,6 +260,40 @@ function setSelectedAnnotation(selection: DicomAnnotationSelection | null): void
     if (selection === null && selectedAnnotation.value === null) return
     selectedAnnotation.value = selection
     emit('annotation-selection-change', selection)
+}
+
+function selectAnnotation(uid: string): void {
+    if (!app || !dwv || status.value !== 'ready') throw new Error('Load a DICOM image before selecting annotations.')
+    if (!annotationsVisible.value) throw new Error('Show annotations before selecting a mark.')
+    const summary = annotationSummaries.value.find(item => item.uid === uid)
+    if (!summary) throw new Error('The annotation is no longer available.')
+    const annotation = app.getData(summary.dataId)?.annotationGroup?.getList().find(item => item.trackingUid === uid)
+    if (!annotation) throw new Error('The annotation is no longer available.')
+
+    const view = viewController()
+    const origin = view?.getOriginForImageUid(summary.imageUid)
+    if (!view || !origin) throw new Error('The annotation image is not available in the current view.')
+    const model = createNavigationModel(
+        view.getImageSize().getValues(),
+        view.getCurrentIndex().getValues(),
+        view.getScrollDimIndex()
+    )
+    const target = indexForAnnotation(
+        view.getCurrentIndex().getValues(),
+        view.getIndexFromPosition(new dwv.Point(origin.getValues())).getValues(),
+        model,
+        summary.frameNumber
+    )
+    if (!target || !view.setCurrentIndex(new dwv.Index(target))) {
+        throw new Error('The annotation position is outside the current view.')
+    }
+    syncNavigation()
+    setSelectedAnnotation(createAnnotationSelection(summary.dataId, annotation))
+}
+
+function deleteAnnotationFromList(uid: string): void {
+    selectAnnotation(uid)
+    deleteSelectedAnnotation()
 }
 
 function onAnnotationSelect(event: unknown): void {
@@ -662,6 +719,7 @@ defineExpose({
     getHistoryState: () => history.getState(),
     getSelectedAnnotation,
     getAnnotationSummaries,
+    selectAnnotation,
     updateSelectedAnnotation,
     deleteSelectedAnnotation,
     getNavigationState,
@@ -712,6 +770,14 @@ defineExpose({
 .dicom-viewer__annotation-editor { display: flex; width: 100%; align-items: center; gap: 8px; }
 .dicom-viewer__annotation-editor label { flex: 0 1 auto; }
 .dicom-viewer__annotation-editor input[type=text] { min-width: 12rem; }
+.dicom-viewer__annotation-list { width: 100%; }
+.dicom-viewer__annotation-list summary { cursor: pointer; font-weight: 600; }
+.dicom-viewer__annotation-list ol { display: grid; gap: 6px; max-height: 11rem; margin: 8px 0 0; padding: 0; overflow: auto; list-style: none; }
+.dicom-viewer__annotation-list li { display: flex; gap: 6px; }
+.dicom-viewer__annotation-list li > button:first-child { display: grid; flex: 1; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; min-width: 0; text-align: left; }
+.dicom-viewer__annotation-list li > button.is-selected { color: #67e8f9; border-color: #67e8f9; }
+.dicom-viewer__annotation-list li small { color: #cbd5e1; }
+.dicom-viewer__annotation-swatch { width: 12px; height: 12px; border: 1px solid rgb(255 255 255 / 60%); border-radius: 50%; }
 .dicom-viewer__navigation { display: grid; width: 100%; gap: 8px; }
 .dicom-viewer__navigation-axis { display: flex; width: 100%; align-items: center; gap: 8px; }
 .dicom-viewer__navigation-axis input[type=range] { flex: 1; min-width: 40px; }

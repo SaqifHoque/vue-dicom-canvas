@@ -63,7 +63,7 @@ export function indexForAnnotation(
 
     if (navigation.frameDimension !== null) {
         const frame = frameNumber === undefined
-            ? imageIndex[navigation.frameDimension]
+            ? currentIndex[navigation.frameDimension]
             : frameNumber - 1
         if (typeof frame !== 'number' || !Number.isInteger(frame) || frame < 0 || frame >= navigation.frameCount) return null
         result[navigation.frameDimension] = frame
