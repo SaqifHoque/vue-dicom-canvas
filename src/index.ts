@@ -6,6 +6,7 @@ export type { DicomSource, DicomViewerProps, DicomViewerStatus } from './types'
 
 export type { DicomAnnotations } from './annotation-utils'
 export type { DicomAnnotationEdit, DicomAnnotationSelection } from './annotation-editing'
+export type { DicomAnnotationSummary } from './annotation-list'
 export { defaultDrawingShapes, drawingShapeDefinitions } from './drawing-shapes'
 export type { DicomDrawingInteraction, DicomDrawingShape } from './drawing-shapes'
 export type { AnnotationChangeDetails, AnnotationChangeReason, AnnotationHistoryState } from './annotation-history'
