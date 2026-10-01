@@ -143,6 +143,13 @@ import {
 } from './navigation'
 import { normaliseDicomSource } from './source-utils'
 import type { DicomSource, DicomViewerProps, DicomViewerStatus } from './types'
+import {
+    createWindowLevelState,
+    validateWindowLevel,
+    validateWindowLevelPreset,
+    type DicomWindowLevel,
+    type DicomWindowLevelState
+} from './window-level'
 
 const props = withDefaults(
     defineProps<DicomViewerProps>(),
@@ -177,6 +184,7 @@ const emit = defineEmits<{
     'annotation-selection-change': [selection: DicomAnnotationSelection | null]
     'annotation-list-change': [annotations: readonly DicomAnnotationSummary[]]
     'navigation-change': [navigation: DicomNavigationState]
+    'window-level-change': [windowLevel: DicomWindowLevelState | null]
     'update:settingsOpen': [open: boolean]
     'load-start': [event: unknown]
     'load-progress': [event: unknown]
@@ -208,6 +216,7 @@ const enabledDrawingShapeDefinitions = drawingShapeDefinitions.filter(shape => e
 const activeDrawingShape = computed(() => enabledDrawingShapeDefinitions.find(shape => shape.name === selectedTool.value))
 const colour = ref('#ffff80')
 const navigation = ref<DicomNavigationState>({ slice: 1, sliceCount: 1, frame: 1, frameCount: 1 })
+const windowLevel = ref<DicomWindowLevelState | null>(null)
 const selectedAnnotation = ref<DicomAnnotationSelection | null>(null)
 const annotationSummaries = ref<DicomAnnotationSummary[]>([])
 const history = new AnnotationHistoryController()
@@ -352,6 +361,39 @@ function toggleSettings() {
 function viewController() {
     return app?.getActiveLayerGroup()?.getBaseViewLayer()?.getViewController()
 }
+function syncWindowLevel(): void {
+    const view = viewController()
+    const next = view?.canWindowLevel() ? createWindowLevelState(view) : null
+    if (JSON.stringify(next) === JSON.stringify(windowLevel.value)) return
+    windowLevel.value = next
+    emit('window-level-change', next ? { ...next, presets: [...next.presets] } : null)
+}
+const getWindowLevelState = (): DicomWindowLevelState | null => windowLevel.value
+    ? { ...windowLevel.value, presets: [...windowLevel.value.presets] }
+    : null
+function requireWindowLevelController() {
+    const view = viewController()
+    if (!view || status.value !== 'ready') throw new Error('Load a DICOM image before adjusting window and level.')
+    if (!view.canWindowLevel()) throw new Error('Window and level are unavailable for this image.')
+    return view
+}
+function setWindowLevel(value: DicomWindowLevel): void {
+    const view = requireWindowLevelController()
+    if (!dwv) throw new Error('The DICOM viewer is not ready yet.')
+    const next = validateWindowLevel(value)
+    view.setWindowLevel(new dwv.WindowLevel(next.center, next.width))
+    syncWindowLevel()
+}
+function setWindowLevelPreset(name: string): void {
+    const view = requireWindowLevelController()
+    view.setWindowLevelPreset(validateWindowLevelPreset(name, view.getWindowLevelPresetsNames()))
+    syncWindowLevel()
+}
+function resetWindowLevel(): void {
+    const view = requireWindowLevelController()
+    view.resetWindowLevel()
+    syncWindowLevel()
+}
 function syncNavigation() {
     const view = viewController()
     if (!view) return
@@ -383,6 +425,7 @@ function setNavigation(axis: DicomNavigationAxis, value: number) {
     if (!nextIndex) return
     view.setCurrentIndex(new dwv.Index(nextIndex))
     syncNavigation()
+    syncWindowLevel()
 }
 const setSlice = (value: number): void => setNavigation('slice', value)
 const setFrame = (value: number): void => setNavigation('frame', value)
@@ -574,6 +617,10 @@ const clearViewer = (): void => {
     hasSource.value = false
     canRetry.value = false
     navigation.value = { slice: 1, sliceCount: 1, frame: 1, frameCount: 1 }
+    if (windowLevel.value) {
+        windowLevel.value = null
+        emit('window-level-change', null)
+    }
     if (selectedAnnotation.value) setSelectedAnnotation(null)
     status.value = 'idle'
     error.value = null
@@ -644,6 +691,7 @@ const initialise = async (): Promise<void> => {
     app.addEventListener('loadprogress', onLoadProgress)
     app.addEventListener('load', onLoadEnd)
     app.addEventListener('positionchange', syncNavigation)
+    app.addEventListener('wlchange', syncWindowLevel)
     app.addEventListener('annotationselect', onAnnotationSelect)
     app.addEventListener('undoadd', syncHistory)
     for (const event of annotationEvents) app.addEventListener(event, annotationsChanged)
@@ -702,6 +750,7 @@ onBeforeUnmount(() => {
         app.removeEventListener('loadprogress', onLoadProgress)
         app.removeEventListener('load', onLoadEnd)
         app.removeEventListener('positionchange', syncNavigation)
+        app.removeEventListener('wlchange', syncWindowLevel)
         app.removeEventListener('annotationselect', onAnnotationSelect)
         app.removeEventListener('undoadd', syncHistory)
         for (const event of annotationEvents) app.removeEventListener(event, annotationsChanged)
@@ -731,7 +780,11 @@ defineExpose({
     deleteSelectedAnnotation,
     getNavigationState,
     setSlice,
-    setFrame
+    setFrame,
+    getWindowLevelState,
+    setWindowLevel,
+    setWindowLevelPreset,
+    resetWindowLevel
 })
 </script>
 
