@@ -160,8 +160,9 @@ import { normaliseDicomSource } from './source-utils'
 import type { DicomSource, DicomViewerProps, DicomViewerStatus } from './types'
 import {
     createWindowLevelState,
+    resetWindowLevelState,
+    selectWindowLevelPreset,
     validateWindowLevel,
-    validateWindowLevelPreset,
     type DicomWindowLevel,
     type DicomWindowLevelState
 } from './window-level'
@@ -402,12 +403,12 @@ function setWindowLevel(value: DicomWindowLevel): void {
 }
 function setWindowLevelPreset(name: string): void {
     const view = requireWindowLevelController()
-    view.setWindowLevelPreset(validateWindowLevelPreset(name, view.getWindowLevelPresetsNames()))
+    selectWindowLevelPreset(view, name)
     syncWindowLevel()
 }
 function resetWindowLevel(): void {
     const view = requireWindowLevelController()
-    view.resetWindowLevel()
+    resetWindowLevelState(view)
     syncWindowLevel()
 }
 function reportWindowLevelControlError(value: unknown): void {

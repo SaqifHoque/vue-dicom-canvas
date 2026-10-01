@@ -14,6 +14,11 @@ export interface WindowLevelSource {
     getWindowLevelPresetsNames(): string[]
 }
 
+export interface MutableWindowLevelSource extends WindowLevelSource {
+    resetWindowLevel(): void
+    setWindowLevelPreset(name: string): void
+}
+
 export function validateWindowLevel(value: DicomWindowLevel): DicomWindowLevel {
     if (!Number.isFinite(value.center)) throw new TypeError('Window center must be a finite number.')
     if (!Number.isFinite(value.width) || value.width <= 0) {
@@ -35,4 +40,14 @@ export function createWindowLevelState(source: WindowLevelSource): DicomWindowLe
 export function validateWindowLevelPreset(name: string, presets: readonly string[]): string {
     if (!presets.includes(name)) throw new RangeError(`Unknown window/level preset: ${name}.`)
     return name
+}
+
+export function selectWindowLevelPreset(source: MutableWindowLevelSource, name: string): DicomWindowLevelState {
+    source.setWindowLevelPreset(validateWindowLevelPreset(name, source.getWindowLevelPresetsNames()))
+    return createWindowLevelState(source)
+}
+
+export function resetWindowLevelState(source: MutableWindowLevelSource): DicomWindowLevelState {
+    source.resetWindowLevel()
+    return createWindowLevelState(source)
 }

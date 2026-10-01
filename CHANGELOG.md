@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Window and level controls
+
+- Expose typed window/level state, preset selection, manual adjustment, reset, and change events.
+- Add image-specific preset, center, width, and reset controls for monochrome images.
+- Validate manual input and keep state synchronized with DWV's drag tool and per-slice presets.
+
 ## Unreleased — Annotation list
 
 - Expose typed annotation summaries and emit `annotation-list-change` as marks change.
