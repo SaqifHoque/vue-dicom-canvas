@@ -43,6 +43,21 @@
                 <label><input v-model="annotationsVisible" type="checkbox" /> Show marks</label>
                 <button :disabled="readOnly || !historyState.canUndo" @click="undo">Undo</button><button :disabled="readOnly || !historyState.canRedo" @click="redo">Redo</button>
                 <button @click="app?.fitToContainer()">Fit</button>
+                <div v-if="windowLevel" class="dicom-viewer__window-level">
+                    <strong>Contrast</strong>
+                    <label>Preset
+                        <select :value="windowLevel.preset" @change="selectWindowLevelPresetFromControls(($event.target as HTMLSelectElement).value)">
+                            <option v-for="preset in windowLevel.presets" :key="preset" :value="preset">{{ preset }}</option>
+                        </select>
+                    </label>
+                    <label>Center
+                        <input type="number" step="any" :value="windowLevel.center" @change="setWindowLevelFromControls('center', ($event.target as HTMLInputElement))" />
+                    </label>
+                    <label>Width
+                        <input type="number" min="0.000001" step="any" :value="windowLevel.width" @change="setWindowLevelFromControls('width', ($event.target as HTMLInputElement))" />
+                    </label>
+                    <button type="button" @click="resetWindowLevelFromControls">Reset</button>
+                </div>
                 <div v-if="selectedAnnotation && !readOnly && annotationsVisible" class="dicom-viewer__annotation-editor">
                     <strong>Selected mark</strong>
                     <label>Color <input :value="selectedAnnotation.colour" type="color" @change="updateSelectedAnnotation({ colour: ($event.target as HTMLInputElement).value })" /></label>
@@ -185,6 +200,7 @@ const emit = defineEmits<{
     'annotation-list-change': [annotations: readonly DicomAnnotationSummary[]]
     'navigation-change': [navigation: DicomNavigationState]
     'window-level-change': [windowLevel: DicomWindowLevelState | null]
+    'window-level-error': [error: Error]
     'update:settingsOpen': [open: boolean]
     'load-start': [event: unknown]
     'load-progress': [event: unknown]
@@ -393,6 +409,30 @@ function resetWindowLevel(): void {
     const view = requireWindowLevelController()
     view.resetWindowLevel()
     syncWindowLevel()
+}
+function reportWindowLevelControlError(value: unknown): void {
+    emit('window-level-error', toError(value))
+    syncWindowLevel()
+}
+function setWindowLevelFromControls(key: keyof DicomWindowLevel, input: HTMLInputElement): void {
+    if (!windowLevel.value) return
+    try {
+        setWindowLevel({
+            center: key === 'center' ? Number(input.value) : windowLevel.value.center,
+            width: key === 'width' ? Number(input.value) : windowLevel.value.width
+        })
+    } catch (error) {
+        input.value = String(windowLevel.value[key])
+        reportWindowLevelControlError(error)
+    }
+}
+function selectWindowLevelPresetFromControls(name: string): void {
+    try { setWindowLevelPreset(name) }
+    catch (error) { reportWindowLevelControlError(error) }
+}
+function resetWindowLevelFromControls(): void {
+    try { resetWindowLevel() }
+    catch (error) { reportWindowLevelControlError(error) }
 }
 function syncNavigation() {
     const view = viewController()
@@ -827,6 +867,8 @@ defineExpose({
 .dicom-viewer__settings button:disabled { opacity: .4; cursor: default; }
 .dicom-viewer__settings input[type=color] { width: 36px; height: 28px; padding: 0; border: 0; }
 .dicom-viewer__tool-help { color: #cbd5e1; }
+.dicom-viewer__window-level { display: flex; width: 100%; align-items: center; gap: 8px; }
+.dicom-viewer__window-level input[type=number] { width: 7em; }
 .dicom-viewer__annotation-editor { display: flex; width: 100%; align-items: center; gap: 8px; }
 .dicom-viewer__annotation-editor label { flex: 0 1 auto; }
 .dicom-viewer__annotation-editor input[type=text] { min-width: 12rem; }
