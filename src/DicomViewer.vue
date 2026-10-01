@@ -43,6 +43,21 @@
                 <label><input v-model="annotationsVisible" type="checkbox" /> Show marks</label>
                 <button :disabled="readOnly || !historyState.canUndo" @click="undo">Undo</button><button :disabled="readOnly || !historyState.canRedo" @click="redo">Redo</button>
                 <button @click="app?.fitToContainer()">Fit</button>
+                <div v-if="windowLevel" class="dicom-viewer__window-level">
+                    <strong>Contrast</strong>
+                    <label>Preset
+                        <select :value="windowLevel.preset" @change="selectWindowLevelPresetFromControls(($event.target as HTMLSelectElement).value)">
+                            <option v-for="preset in windowLevel.presets" :key="preset" :value="preset">{{ preset }}</option>
+                        </select>
+                    </label>
+                    <label>Center
+                        <input type="number" step="any" :value="windowLevel.center" @change="setWindowLevelFromControls('center', ($event.target as HTMLInputElement))" />
+                    </label>
+                    <label>Width
+                        <input type="number" min="0.000001" step="any" :value="windowLevel.width" @change="setWindowLevelFromControls('width', ($event.target as HTMLInputElement))" />
+                    </label>
+                    <button type="button" @click="resetWindowLevelFromControls">Reset</button>
+                </div>
                 <div v-if="selectedAnnotation && !readOnly && annotationsVisible" class="dicom-viewer__annotation-editor">
                     <strong>Selected mark</strong>
                     <label>Color <input :value="selectedAnnotation.colour" type="color" @change="updateSelectedAnnotation({ colour: ($event.target as HTMLInputElement).value })" /></label>
@@ -143,6 +158,14 @@ import {
 } from './navigation'
 import { normaliseDicomSource } from './source-utils'
 import type { DicomSource, DicomViewerProps, DicomViewerStatus } from './types'
+import {
+    createWindowLevelState,
+    resetWindowLevelState,
+    selectWindowLevelPreset,
+    validateWindowLevel,
+    type DicomWindowLevel,
+    type DicomWindowLevelState
+} from './window-level'
 
 const props = withDefaults(
     defineProps<DicomViewerProps>(),
@@ -177,6 +200,8 @@ const emit = defineEmits<{
     'annotation-selection-change': [selection: DicomAnnotationSelection | null]
     'annotation-list-change': [annotations: readonly DicomAnnotationSummary[]]
     'navigation-change': [navigation: DicomNavigationState]
+    'window-level-change': [windowLevel: DicomWindowLevelState | null]
+    'window-level-error': [error: Error]
     'update:settingsOpen': [open: boolean]
     'load-start': [event: unknown]
     'load-progress': [event: unknown]
@@ -208,6 +233,7 @@ const enabledDrawingShapeDefinitions = drawingShapeDefinitions.filter(shape => e
 const activeDrawingShape = computed(() => enabledDrawingShapeDefinitions.find(shape => shape.name === selectedTool.value))
 const colour = ref('#ffff80')
 const navigation = ref<DicomNavigationState>({ slice: 1, sliceCount: 1, frame: 1, frameCount: 1 })
+const windowLevel = ref<DicomWindowLevelState | null>(null)
 const selectedAnnotation = ref<DicomAnnotationSelection | null>(null)
 const annotationSummaries = ref<DicomAnnotationSummary[]>([])
 const history = new AnnotationHistoryController()
@@ -352,6 +378,63 @@ function toggleSettings() {
 function viewController() {
     return app?.getActiveLayerGroup()?.getBaseViewLayer()?.getViewController()
 }
+function syncWindowLevel(): void {
+    const view = viewController()
+    const next = view?.canWindowLevel() ? createWindowLevelState(view) : null
+    if (JSON.stringify(next) === JSON.stringify(windowLevel.value)) return
+    windowLevel.value = next
+    emit('window-level-change', next ? { ...next, presets: [...next.presets] } : null)
+}
+const getWindowLevelState = (): DicomWindowLevelState | null => windowLevel.value
+    ? { ...windowLevel.value, presets: [...windowLevel.value.presets] }
+    : null
+function requireWindowLevelController() {
+    const view = viewController()
+    if (!view || status.value !== 'ready') throw new Error('Load a DICOM image before adjusting window and level.')
+    if (!view.canWindowLevel()) throw new Error('Window and level are unavailable for this image.')
+    return view
+}
+function setWindowLevel(value: DicomWindowLevel): void {
+    const view = requireWindowLevelController()
+    if (!dwv) throw new Error('The DICOM viewer is not ready yet.')
+    const next = validateWindowLevel(value)
+    view.setWindowLevel(new dwv.WindowLevel(next.center, next.width))
+    syncWindowLevel()
+}
+function setWindowLevelPreset(name: string): void {
+    const view = requireWindowLevelController()
+    selectWindowLevelPreset(view, name)
+    syncWindowLevel()
+}
+function resetWindowLevel(): void {
+    const view = requireWindowLevelController()
+    resetWindowLevelState(view)
+    syncWindowLevel()
+}
+function reportWindowLevelControlError(value: unknown): void {
+    emit('window-level-error', toError(value))
+    syncWindowLevel()
+}
+function setWindowLevelFromControls(key: keyof DicomWindowLevel, input: HTMLInputElement): void {
+    if (!windowLevel.value) return
+    try {
+        setWindowLevel({
+            center: key === 'center' ? Number(input.value) : windowLevel.value.center,
+            width: key === 'width' ? Number(input.value) : windowLevel.value.width
+        })
+    } catch (error) {
+        input.value = String(windowLevel.value[key])
+        reportWindowLevelControlError(error)
+    }
+}
+function selectWindowLevelPresetFromControls(name: string): void {
+    try { setWindowLevelPreset(name) }
+    catch (error) { reportWindowLevelControlError(error) }
+}
+function resetWindowLevelFromControls(): void {
+    try { resetWindowLevel() }
+    catch (error) { reportWindowLevelControlError(error) }
+}
 function syncNavigation() {
     const view = viewController()
     if (!view) return
@@ -383,6 +466,7 @@ function setNavigation(axis: DicomNavigationAxis, value: number) {
     if (!nextIndex) return
     view.setCurrentIndex(new dwv.Index(nextIndex))
     syncNavigation()
+    syncWindowLevel()
 }
 const setSlice = (value: number): void => setNavigation('slice', value)
 const setFrame = (value: number): void => setNavigation('frame', value)
@@ -574,6 +658,10 @@ const clearViewer = (): void => {
     hasSource.value = false
     canRetry.value = false
     navigation.value = { slice: 1, sliceCount: 1, frame: 1, frameCount: 1 }
+    if (windowLevel.value) {
+        windowLevel.value = null
+        emit('window-level-change', null)
+    }
     if (selectedAnnotation.value) setSelectedAnnotation(null)
     status.value = 'idle'
     error.value = null
@@ -644,6 +732,7 @@ const initialise = async (): Promise<void> => {
     app.addEventListener('loadprogress', onLoadProgress)
     app.addEventListener('load', onLoadEnd)
     app.addEventListener('positionchange', syncNavigation)
+    app.addEventListener('wlchange', syncWindowLevel)
     app.addEventListener('annotationselect', onAnnotationSelect)
     app.addEventListener('undoadd', syncHistory)
     for (const event of annotationEvents) app.addEventListener(event, annotationsChanged)
@@ -702,6 +791,7 @@ onBeforeUnmount(() => {
         app.removeEventListener('loadprogress', onLoadProgress)
         app.removeEventListener('load', onLoadEnd)
         app.removeEventListener('positionchange', syncNavigation)
+        app.removeEventListener('wlchange', syncWindowLevel)
         app.removeEventListener('annotationselect', onAnnotationSelect)
         app.removeEventListener('undoadd', syncHistory)
         for (const event of annotationEvents) app.removeEventListener(event, annotationsChanged)
@@ -731,7 +821,11 @@ defineExpose({
     deleteSelectedAnnotation,
     getNavigationState,
     setSlice,
-    setFrame
+    setFrame,
+    getWindowLevelState,
+    setWindowLevel,
+    setWindowLevelPreset,
+    resetWindowLevel
 })
 </script>
 
@@ -774,6 +868,8 @@ defineExpose({
 .dicom-viewer__settings button:disabled { opacity: .4; cursor: default; }
 .dicom-viewer__settings input[type=color] { width: 36px; height: 28px; padding: 0; border: 0; }
 .dicom-viewer__tool-help { color: #cbd5e1; }
+.dicom-viewer__window-level { display: flex; width: 100%; align-items: center; gap: 8px; }
+.dicom-viewer__window-level input[type=number] { width: 7em; }
 .dicom-viewer__annotation-editor { display: flex; width: 100%; align-items: center; gap: 8px; }
 .dicom-viewer__annotation-editor label { flex: 0 1 auto; }
 .dicom-viewer__annotation-editor input[type=text] { min-width: 12rem; }
