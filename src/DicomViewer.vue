@@ -42,7 +42,14 @@
                 <label>Color <input v-model="colour" type="color" :disabled="readOnly" @input="applyTool" /></label>
                 <label><input v-model="annotationsVisible" type="checkbox" /> Show marks</label>
                 <button :disabled="readOnly || !historyState.canUndo" @click="undo">Undo</button><button :disabled="readOnly || !historyState.canRedo" @click="redo">Redo</button>
-                <button @click="app?.fitToContainer()">Fit</button>
+                <div v-if="viewport" class="dicom-viewer__viewport-controls">
+                    <strong>View</strong>
+                    <button type="button" :disabled="viewport.zoom <= viewportZoomBounds.min" aria-label="Zoom out" @click="adjustViewportZoom(1 / 1.25)">−</button>
+                    <output aria-live="polite">{{ Math.round(viewport.zoom * 100) }}%</output>
+                    <button type="button" :disabled="viewport.zoom >= viewportZoomBounds.max" aria-label="Zoom in" @click="adjustViewportZoom(1.25)">+</button>
+                    <button type="button" :disabled="viewport.isDefault" @click="resetViewportFromControls">Reset view</button>
+                    <button type="button" @click="fitViewportFromControls">Fit</button>
+                </div>
                 <div v-if="windowLevel" class="dicom-viewer__window-level">
                     <strong>Contrast</strong>
                     <label>Preset
@@ -162,6 +169,7 @@ import {
     createViewportState,
     validateViewportPan,
     validateViewportZoom,
+    viewportZoomBounds,
     type DicomViewportPoint,
     type DicomViewportState
 } from './viewport'
@@ -210,6 +218,7 @@ const emit = defineEmits<{
     'window-level-change': [windowLevel: DicomWindowLevelState | null]
     'window-level-error': [error: Error]
     'viewport-change': [viewport: DicomViewportState | null]
+    'viewport-error': [error: Error]
     'update:settingsOpen': [open: boolean]
     'load-start': [event: unknown]
     'load-progress': [event: unknown]
@@ -426,6 +435,27 @@ function resetViewport(): void {
 function fitToContainer(): void {
     app?.fitToContainer()
     syncViewport()
+}
+function reportViewportControlError(value: unknown): void {
+    emit('viewport-error', toError(value))
+    syncViewport()
+}
+function adjustViewportZoom(factor: number): void {
+    if (!viewport.value) return
+    const target = Math.min(
+        viewportZoomBounds.max,
+        Math.max(viewportZoomBounds.min, viewport.value.zoom * factor)
+    )
+    try { setViewportZoom(target) }
+    catch (error) { reportViewportControlError(error) }
+}
+function resetViewportFromControls(): void {
+    try { resetViewport() }
+    catch (error) { reportViewportControlError(error) }
+}
+function fitViewportFromControls(): void {
+    try { fitToContainer() }
+    catch (error) { reportViewportControlError(error) }
 }
 function syncWindowLevel(): void {
     const view = viewController()
@@ -930,6 +960,8 @@ defineExpose({
 .dicom-viewer__settings button:disabled { opacity: .4; cursor: default; }
 .dicom-viewer__settings input[type=color] { width: 36px; height: 28px; padding: 0; border: 0; }
 .dicom-viewer__tool-help { color: #cbd5e1; }
+.dicom-viewer__viewport-controls { display: flex; align-items: center; gap: 8px; }
+.dicom-viewer__viewport-controls output { min-width: 3.5em; text-align: center; font-variant-numeric: tabular-nums; }
 .dicom-viewer__window-level { display: flex; width: 100%; align-items: center; gap: 8px; }
 .dicom-viewer__window-level input[type=number] { width: 7em; }
 .dicom-viewer__annotation-editor { display: flex; width: 100%; align-items: center; gap: 8px; }
