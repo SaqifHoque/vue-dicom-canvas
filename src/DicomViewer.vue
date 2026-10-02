@@ -159,6 +159,13 @@ import {
 import { normaliseDicomSource } from './source-utils'
 import type { DicomSource, DicomViewerProps, DicomViewerStatus } from './types'
 import {
+    createViewportState,
+    validateViewportPan,
+    validateViewportZoom,
+    type DicomViewportPoint,
+    type DicomViewportState
+} from './viewport'
+import {
     createWindowLevelState,
     resetWindowLevelState,
     selectWindowLevelPreset,
@@ -202,6 +209,7 @@ const emit = defineEmits<{
     'navigation-change': [navigation: DicomNavigationState]
     'window-level-change': [windowLevel: DicomWindowLevelState | null]
     'window-level-error': [error: Error]
+    'viewport-change': [viewport: DicomViewportState | null]
     'update:settingsOpen': [open: boolean]
     'load-start': [event: unknown]
     'load-progress': [event: unknown]
@@ -234,6 +242,7 @@ const activeDrawingShape = computed(() => enabledDrawingShapeDefinitions.find(sh
 const colour = ref('#ffff80')
 const navigation = ref<DicomNavigationState>({ slice: 1, sliceCount: 1, frame: 1, frameCount: 1 })
 const windowLevel = ref<DicomWindowLevelState | null>(null)
+const viewport = ref<DicomViewportState | null>(null)
 const selectedAnnotation = ref<DicomAnnotationSelection | null>(null)
 const annotationSummaries = ref<DicomAnnotationSummary[]>([])
 const history = new AnnotationHistoryController()
@@ -377,6 +386,46 @@ function toggleSettings() {
 }
 function viewController() {
     return app?.getActiveLayerGroup()?.getBaseViewLayer()?.getViewController()
+}
+function syncViewport(): void {
+    const group = app?.getActiveLayerGroup()
+    const next = group ? createViewportState(group) : null
+    if (JSON.stringify(next) === JSON.stringify(viewport.value)) return
+    viewport.value = next
+    emit('viewport-change', next ? { ...next, pan: { ...next.pan } } : null)
+}
+const getViewportState = (): DicomViewportState | null => viewport.value
+    ? { ...viewport.value, pan: { ...viewport.value.pan } }
+    : null
+function requireViewportGroup() {
+    const group = app?.getActiveLayerGroup()
+    if (!group || status.value !== 'ready') throw new Error('Load a DICOM image before changing the viewport.')
+    return group
+}
+function setViewportZoom(value: number): void {
+    const group = requireViewportGroup()
+    const zoom = validateViewportZoom(value)
+    const base = group.getBaseScale()
+    const center = viewController()?.getCurrentPosition().get3D()
+    group.setScale({ x: base.x * zoom, y: base.y * zoom, z: base.z * zoom }, center)
+    group.draw()
+    syncViewport()
+}
+function setViewportPan(value: DicomViewportPoint): void {
+    const group = requireViewportGroup()
+    const pan = validateViewportPan(value)
+    group.setOffset({ ...pan, z: group.getOffset().z })
+    group.draw()
+    syncViewport()
+}
+function resetViewport(): void {
+    if (!app || status.value !== 'ready') throw new Error('Load a DICOM image before resetting the viewport.')
+    app.resetZoomPan()
+    syncViewport()
+}
+function fitToContainer(): void {
+    app?.fitToContainer()
+    syncViewport()
 }
 function syncWindowLevel(): void {
     const view = viewController()
@@ -603,6 +652,7 @@ const onLoadEnd = (event: unknown) => {
     if (!loadSessions.owns(event)) return
     status.value = 'ready'
     if (props.autoFit) app?.fitToContainer()
+    syncViewport()
     syncNavigation()
     setSlice(1)
     setFrame(1)
@@ -661,6 +711,10 @@ const clearViewer = (): void => {
     if (windowLevel.value) {
         windowLevel.value = null
         emit('window-level-change', null)
+    }
+    if (viewport.value) {
+        viewport.value = null
+        emit('viewport-change', null)
     }
     if (selectedAnnotation.value) setSelectedAnnotation(null)
     status.value = 'idle'
@@ -733,6 +787,8 @@ const initialise = async (): Promise<void> => {
     app.addEventListener('load', onLoadEnd)
     app.addEventListener('positionchange', syncNavigation)
     app.addEventListener('wlchange', syncWindowLevel)
+    app.addEventListener('zoomchange', syncViewport)
+    app.addEventListener('offsetchange', syncViewport)
     app.addEventListener('annotationselect', onAnnotationSelect)
     app.addEventListener('undoadd', syncHistory)
     for (const event of annotationEvents) app.addEventListener(event, annotationsChanged)
@@ -742,7 +798,7 @@ const initialise = async (): Promise<void> => {
 
     if (typeof ResizeObserver !== 'undefined' && container.value) {
         resizeObserver = new ResizeObserver(() => {
-            if (status.value === 'ready' && props.autoFit) app?.fitToContainer()
+            if (status.value === 'ready' && props.autoFit) fitToContainer()
         })
         resizeObserver.observe(container.value)
     }
@@ -792,6 +848,8 @@ onBeforeUnmount(() => {
         app.removeEventListener('load', onLoadEnd)
         app.removeEventListener('positionchange', syncNavigation)
         app.removeEventListener('wlchange', syncWindowLevel)
+        app.removeEventListener('zoomchange', syncViewport)
+        app.removeEventListener('offsetchange', syncViewport)
         app.removeEventListener('annotationselect', onAnnotationSelect)
         app.removeEventListener('undoadd', syncHistory)
         for (const event of annotationEvents) app.removeEventListener(event, annotationsChanged)
@@ -808,7 +866,7 @@ defineExpose({
     load,
     retry,
     reset,
-    fitToContainer: () => app?.fitToContainer(),
+    fitToContainer,
     getApp: () => app,
     getStatus: () => status.value,
     getAnnotations,
@@ -825,7 +883,11 @@ defineExpose({
     getWindowLevelState,
     setWindowLevel,
     setWindowLevelPreset,
-    resetWindowLevel
+    resetWindowLevel,
+    getViewportState,
+    setViewportZoom,
+    setViewportPan,
+    resetViewport
 })
 </script>
 
