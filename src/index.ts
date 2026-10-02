@@ -12,4 +12,5 @@ export type { DicomDrawingInteraction, DicomDrawingShape } from './drawing-shape
 export type { AnnotationChangeDetails, AnnotationChangeReason, AnnotationHistoryState } from './annotation-history'
 export type { DicomNavigationAxis, DicomNavigationState } from './navigation'
 export type { DicomWindowLevel, DicomWindowLevelState } from './window-level'
+export type { DicomViewportPoint, DicomViewportState } from './viewport'
 export type { DicomLoadResult } from './load-session'
