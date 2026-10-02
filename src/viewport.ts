@@ -16,6 +16,13 @@ export interface ViewportStateSource {
     getOffset(): { x: number; y: number; z: number }
 }
 
+export interface ViewportTransformTarget<TCenter = unknown> extends ViewportStateSource {
+    getBaseScale(): { x: number; y: number; z: number }
+    setScale(scale: { x: number; y: number; z: number }, center?: TCenter): void
+    setOffset(offset: { x: number; y: number; z: number }): void
+    draw(): void
+}
+
 const normaliseZero = (value: number): number => Object.is(value, -0) ? 0 : value
 
 export function createViewportState(source: ViewportStateSource): DicomViewportState {
@@ -52,4 +59,26 @@ export function validateViewportPan(point: DicomViewportPoint): DicomViewportPoi
         throw new TypeError('Viewport pan values must be finite numbers.')
     }
     return { ...point }
+}
+
+export function applyViewportZoom<TCenter>(
+    target: ViewportTransformTarget<TCenter>,
+    value: number,
+    center?: TCenter
+): DicomViewportState {
+    const zoom = validateViewportZoom(value)
+    const base = target.getBaseScale()
+    target.setScale({ x: base.x * zoom, y: base.y * zoom, z: base.z * zoom }, center)
+    target.draw()
+    return createViewportState(target)
+}
+
+export function applyViewportPan(
+    target: ViewportTransformTarget,
+    value: DicomViewportPoint
+): DicomViewportState {
+    const pan = validateViewportPan(value)
+    target.setOffset({ ...pan, z: target.getOffset().z })
+    target.draw()
+    return createViewportState(target)
 }

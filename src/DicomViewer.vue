@@ -166,9 +166,9 @@ import {
 import { normaliseDicomSource } from './source-utils'
 import type { DicomSource, DicomViewerProps, DicomViewerStatus } from './types'
 import {
+    applyViewportPan,
+    applyViewportZoom,
     createViewportState,
-    validateViewportPan,
-    validateViewportZoom,
     viewportZoomBounds,
     type DicomViewportPoint,
     type DicomViewportState
@@ -413,18 +413,13 @@ function requireViewportGroup() {
 }
 function setViewportZoom(value: number): void {
     const group = requireViewportGroup()
-    const zoom = validateViewportZoom(value)
-    const base = group.getBaseScale()
     const center = viewController()?.getCurrentPosition().get3D()
-    group.setScale({ x: base.x * zoom, y: base.y * zoom, z: base.z * zoom }, center)
-    group.draw()
+    applyViewportZoom(group, value, center)
     syncViewport()
 }
 function setViewportPan(value: DicomViewportPoint): void {
     const group = requireViewportGroup()
-    const pan = validateViewportPan(value)
-    group.setOffset({ ...pan, z: group.getOffset().z })
-    group.draw()
+    applyViewportPan(group, value)
     syncViewport()
 }
 function resetViewport(): void {

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Viewport controls
+
+- Expose typed zoom and pan state with absolute setters, reset, and change events.
+- Add zoom-out, zoom-in, reset-view, and fit actions with a live zoom percentage.
+- Keep image and annotation layers aligned through shared transforms and resize fitting.
+
 ## Unreleased — Window and level controls
 
 - Expose typed window/level state, preset selection, manual adjustment, reset, and change events.

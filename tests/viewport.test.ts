@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
+    applyViewportPan,
+    applyViewportZoom,
     createViewportState,
     validateViewportPan,
     validateViewportZoom,
@@ -42,5 +44,32 @@ describe('viewport state', () => {
         assert.throws(() => validateViewportZoom(Number.NaN), /finite number/)
         assert.deepEqual(validateViewportPan({ x: -10, y: 5 }), { x: -10, y: 5 })
         assert.throws(() => validateViewportPan({ x: Infinity, y: 0 }), /finite numbers/)
+    })
+
+    it('applies transforms through one shared image and annotation layer group', () => {
+        let scale = { x: 2, y: 2, z: 2 }
+        let offset = { x: 0, y: 0, z: 0 }
+        let draws = 0
+        const group = {
+            getAddedScale: () => ({ x: scale.x / 2, y: scale.y / 2, z: scale.z / 2 }),
+            getBaseScale: () => ({ x: 2, y: 2, z: 2 }),
+            getOffset: () => offset,
+            setScale: (value: typeof scale) => { scale = value },
+            setOffset: (value: typeof offset) => { offset = value },
+            draw: () => { draws += 1 }
+        }
+
+        assert.deepEqual(applyViewportZoom(group, 1.5), {
+            zoom: 1.5,
+            pan: { x: 0, y: 0 },
+            isDefault: false
+        })
+        assert.deepEqual(scale, { x: 3, y: 3, z: 3 })
+        assert.deepEqual(applyViewportPan(group, { x: 18, y: -7 }), {
+            zoom: 1.5,
+            pan: { x: 18, y: -7 },
+            isDefault: false
+        })
+        assert.equal(draws, 2)
     })
 })
