@@ -10,7 +10,7 @@ Vue DICOM Canvas wraps [DWV](https://github.com/ivmartel/dwv) in a typed Vue com
 
 - Slice slider and previous/next navigation.
 - Ruler, rectangle, ellipse, circle, arrow, angle, and polygon/ROI annotations with a color picker.
-- Undo/redo, zoom/pan, window/level presets and numeric adjustment, and fit-to-container.
+- Undo/redo, synchronized zoom/pan controls, window/level presets and numeric adjustment, and fit-to-container.
 - Settings overlay with an accessible gear toggle.
 - Annotation snapshots that retain image/frame references, geometry, colors, and labels.
 - A collapsible annotation list that selects marks and jumps to their referenced slice and frame.
@@ -111,6 +111,8 @@ A template ref exposes `getAnnotations()`, `setAnnotations(snapshot)`, and `getH
 
 For monochrome images, the **Contrast** controls list the presets supplied by the current DICOM image and allow direct center and width entry. DWV bounds manual values to the image's rescaled data range. **Reset** restores that image's first preset. `getWindowLevelState()` returns `{ center, width, preset, presets }`; `setWindowLevel({ center, width })`, `setWindowLevelPreset(name)`, and `resetWindowLevel()` provide the same operations to consuming applications. Changes made through these methods, the built-in controls, or DWV's Window / level drag tool emit `window-level-change`. Invalid control input emits `window-level-error`; imperative methods throw.
 
+The **View** controls show zoom relative to the fitted image size and provide bounded zoom-out, zoom-in, reset, and fit actions. `getViewportState()` returns `{ zoom, pan: { x, y }, isDefault }`. Use `setViewportZoom(factor)` for 0.1× through 10× zoom, `setViewportPan({ x, y })` for an absolute offset, and `resetViewport()` to restore 1× with no pan. `viewport-change` also tracks mouse and touch changes from DWV's Zoom / pan tool. Image and annotation layers share the same DWV layer-group transform, including after container resize.
+
 Restoring or clearing annotations starts a new undo/redo boundary. Edits made before that replacement cannot be reached with the built-in Undo button, while new drawings can be undone and redone normally. Before changing any marks, the viewer validates the snapshot structure and size, then checks its study, image, frame, and shape references against the loaded DICOM data. A failed restore leaves the current marks and history boundary intact. Invalid prop-based restores emit `annotation-error`; invalid imperative restores throw. Resetting the viewer does not erase the parent's saved annotation value.
 
 Snapshots use this package's versioned JSON format, containing DWV DICOM SR elements and appearance information. They are limited to 10 MiB, 100 groups, 1,000 annotations, and 4,096 characters per annotation text. They are not Annotorious JSON. They can include patient/study metadata copied from the DICOM source, so store and protect them as study data. The package does not connect to a database or autosave.
@@ -142,9 +144,9 @@ Snapshots use this package's versioned JSON format, containing DWV DICOM SR elem
 
 ### Events, slots, and methods
 
-- **Events:** `load-start`, `load-progress`, `loaded`, `error`, `load-abort`, `load-timeout`, `annotation-error`, `annotation-list-change`, `annotation-selection-change`, `window-level-change`, `window-level-error`, `update:annotations`, `update:annotationsVisible`, `annotations-change`, `history-change`, `navigation-change`, and `update:settingsOpen`.
+- **Events:** `load-start`, `load-progress`, `loaded`, `error`, `load-abort`, `load-timeout`, `annotation-error`, `annotation-list-change`, `annotation-selection-change`, `window-level-change`, `window-level-error`, `viewport-change`, `viewport-error`, `update:annotations`, `update:annotationsVisible`, `annotations-change`, `history-change`, `navigation-change`, and `update:settingsOpen`.
 - **Slots:** `loading`, `empty`, and `error`. The error slot receives `{ error, retry }`. The default error display includes a Retry button.
-- **Methods:** `load(source?)`, `retry()`, `reset()`, `fitToContainer()`, `setSlice(oneBasedIndex)`, `setFrame(oneBasedIndex)`, `getNavigationState()`, `getWindowLevelState()`, `setWindowLevel(value)`, `setWindowLevelPreset(name)`, `resetWindowLevel()`, `getAnnotations()`, `setAnnotations(snapshot)`, `getAnnotationSummaries()`, `selectAnnotation(uid)`, `getSelectedAnnotation()`, `updateSelectedAnnotation(edit)`, `deleteSelectedAnnotation()`, `getHistoryState()`, `getStatus()`, and `getApp()`.
+- **Methods:** `load(source?)`, `retry()`, `reset()`, `fitToContainer()`, `getViewportState()`, `setViewportZoom(factor)`, `setViewportPan(point)`, `resetViewport()`, `setSlice(oneBasedIndex)`, `setFrame(oneBasedIndex)`, `getNavigationState()`, `getWindowLevelState()`, `setWindowLevel(value)`, `setWindowLevelPreset(name)`, `resetWindowLevel()`, `getAnnotations()`, `setAnnotations(snapshot)`, `getAnnotationSummaries()`, `selectAnnotation(uid)`, `getSelectedAnnotation()`, `updateSelectedAnnotation(edit)`, `deleteSelectedAnnotation()`, `getHistoryState()`, `getStatus()`, and `getApp()`.
 
 Slice and frame positions are 1-based. For 4D data, `setSlice()` changes DWV's spatial scroll dimension without changing the temporal frame, while `setFrame()` changes the fourth dimension without changing the spatial slice. Invalid and out-of-range positions are ignored. `navigation-change` and `getNavigationState()` provide `{ slice, sliceCount, frame, frameCount }`; single-frame data always reports frame 1 of 1 and hides the frame controls.
 
