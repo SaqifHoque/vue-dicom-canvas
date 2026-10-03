@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Keyboard accessibility
+
+- Make the ready viewer focusable and add scoped navigation, zoom, fit, reset, and tool shortcuts.
+- Preserve form, link, editable-content, and browser-modified keyboard behavior.
+- Add visible shortcut help, focus styling, and live announcements for completed actions.
+
 ## Unreleased — Viewport controls
 
 - Expose typed zoom and pan state with absolute setters, reset, and change events.

@@ -12,6 +12,7 @@ Vue DICOM Canvas wraps [DWV](https://github.com/ivmartel/dwv) in a typed Vue com
 - Ruler, rectangle, ellipse, circle, arrow, angle, and polygon/ROI annotations with a color picker.
 - Undo/redo, synchronized zoom/pan controls, window/level presets and numeric adjustment, and fit-to-container.
 - Settings overlay with an accessible gear toggle.
+- Focus-scoped keyboard navigation, viewport actions, tool selection, and live announcements.
 - Annotation snapshots that retain image/frame references, geometry, colors, and labels.
 - A collapsible annotation list that selects marks and jumps to their referenced slice and frame.
 - Vue `v-model:annotations` and imperative export/restore methods.
@@ -112,6 +113,8 @@ A template ref exposes `getAnnotations()`, `setAnnotations(snapshot)`, and `getH
 For monochrome images, the **Contrast** controls list the presets supplied by the current DICOM image and allow direct center and width entry. DWV bounds manual values to the image's rescaled data range. **Reset** restores that image's first preset. `getWindowLevelState()` returns `{ center, width, preset, presets }`; `setWindowLevel({ center, width })`, `setWindowLevelPreset(name)`, and `resetWindowLevel()` provide the same operations to consuming applications. Changes made through these methods, the built-in controls, or DWV's Window / level drag tool emit `window-level-change`. Invalid control input emits `window-level-error`; imperative methods throw.
 
 The **View** controls show zoom relative to the fitted image size and provide bounded zoom-out, zoom-in, reset, and fit actions. `getViewportState()` returns `{ zoom, pan: { x, y }, isDefault }`. Use `setViewportZoom(factor)` for 0.1× through 10× zoom, `setViewportPan({ x, y })` for an absolute offset, and `resetViewport()` to restore 1× with no pan. `viewport-change` also tracks mouse and touch changes from DWV's Zoom / pan tool. Image and annotation layers share the same DWV layer-group transform, including after container resize.
+
+When an image is ready, tab to the viewer to use its keyboard shortcuts. Left/right arrows or Page Up/Page Down move between slices; up/down arrows move between frames when temporal frames exist. Plus and minus change zoom, `0` resets the view, `F` fits the image, and `S`, `Z`, and `W` select the scroll, zoom/pan, and window/level tools. These unmodified keys act only while the viewer region itself has focus, so controls, links, editable content, and browser modifier shortcuts keep their normal behavior. The settings panel lists the same shortcuts, and `viewerKeyboardShortcuts` exports that list for custom interfaces.
 
 Restoring or clearing annotations starts a new undo/redo boundary. Edits made before that replacement cannot be reached with the built-in Undo button, while new drawings can be undone and redone normally. Before changing any marks, the viewer validates the snapshot structure and size, then checks its study, image, frame, and shape references against the loaded DICOM data. A failed restore leaves the current marks and history boundary intact. Invalid prop-based restores emit `annotation-error`; invalid imperative restores throw. Resetting the viewer does not erase the parent's saved annotation value.
 
