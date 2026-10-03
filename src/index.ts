@@ -14,5 +14,9 @@ export type { DicomNavigationAxis, DicomNavigationState } from './navigation'
 export type { DicomWindowLevel, DicomWindowLevelState } from './window-level'
 export type { DicomViewportPoint, DicomViewportState } from './viewport'
 export { viewerKeyboardShortcuts } from './keyboard'
-export type { DicomViewerKeyboardAction } from './keyboard'
+export type {
+    DicomViewerKeyboardAction,
+    DicomViewerKeyboardCommand,
+    DicomViewerKeyboardState
+} from './keyboard'
 export type { DicomLoadResult } from './load-session'
