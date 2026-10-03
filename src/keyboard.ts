@@ -46,13 +46,14 @@ interface KeyboardEventLike {
     altKey?: boolean
     ctrlKey?: boolean
     metaKey?: boolean
-    target?: KeyboardTargetLike | null
+    target?: EventTarget | KeyboardTargetLike | null
 }
 
-export function isKeyboardInputTarget(target: KeyboardTargetLike | null | undefined): boolean {
+export function isKeyboardInputTarget(target: EventTarget | KeyboardTargetLike | null | undefined): boolean {
     if (!target) return false
-    if (target.isContentEditable) return true
-    return ['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON', 'A'].includes(target.tagName?.toUpperCase() ?? '')
+    const element = target as KeyboardTargetLike
+    if (element.isContentEditable) return true
+    return ['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON', 'A'].includes(element.tagName?.toUpperCase() ?? '')
 }
 
 export function resolveViewerKeyboardAction(event: KeyboardEventLike): DicomViewerKeyboardAction | null {

@@ -5,8 +5,15 @@
         :style="viewerStyle"
         :aria-busy="status === 'loading'"
         :aria-label="ariaLabel"
+        :aria-describedby="`${containerId}-keyboard-description`"
+        :tabindex="status === 'ready' ? 0 : -1"
         role="region"
+        @keydown="onViewerKeydown"
     >
+        <p :id="`${containerId}-keyboard-description`" class="dicom-viewer__sr-only">
+            When the viewer is focused, use the arrow keys to navigate. Open settings for all keyboard shortcuts.
+        </p>
+        <p class="dicom-viewer__sr-only" aria-live="polite" aria-atomic="true">{{ keyboardAnnouncement }}</p>
         <div :id="containerId" ref="container" class="dicom-viewer__canvas" />
 
         <div v-if="status === 'loading'" class="dicom-viewer__overlay">
@@ -90,6 +97,15 @@
                         </li>
                     </ol>
                 </details>
+                <details class="dicom-viewer__keyboard-help">
+                    <summary>Keyboard shortcuts</summary>
+                    <dl>
+                        <template v-for="shortcut in viewerKeyboardShortcuts" :key="shortcut.keys">
+                            <dt>{{ shortcut.keys }}</dt>
+                            <dd>{{ shortcut.action }}</dd>
+                        </template>
+                    </dl>
+                </details>
                 <div class="dicom-viewer__navigation">
                     <div class="dicom-viewer__navigation-axis">
                         <button :disabled="navigation.slice <= 1" aria-label="Previous slice" @click="setSlice(navigation.slice - 1)">‹</button>
@@ -150,6 +166,11 @@ import { applyAnnotationReviewState, assertAnnotationWritable } from './annotati
 import type { DwvModule } from './dwv-loader'
 import { loadDwv } from './dwv-loader'
 import { isZipFile } from './file-utils'
+import {
+    createViewerKeyboardCommand,
+    resolveViewerKeyboardAction,
+    viewerKeyboardShortcuts
+} from './keyboard'
 import {
     defaultDrawingShapes,
     drawingShapeDefinitions,
@@ -252,6 +273,7 @@ const colour = ref('#ffff80')
 const navigation = ref<DicomNavigationState>({ slice: 1, sliceCount: 1, frame: 1, frameCount: 1 })
 const windowLevel = ref<DicomWindowLevelState | null>(null)
 const viewport = ref<DicomViewportState | null>(null)
+const keyboardAnnouncement = ref('')
 const selectedAnnotation = ref<DicomAnnotationSelection | null>(null)
 const annotationSummaries = ref<DicomAnnotationSummary[]>([])
 const history = new AnnotationHistoryController()
@@ -551,6 +573,38 @@ function applyTool() {
     if (!drawing && isDicomDrawingShape(selectedTool.value)) selectedTool.value = 'Scroll'
     app.setTool(drawing ? 'Draw' : selectedTool.value)
     if (drawing) app.setToolFeatures({ shapeName: selectedTool.value, shapeColour: colour.value })
+}
+function announceKeyboardAction(message: string): void {
+    keyboardAnnouncement.value = ''
+    void nextTick(() => { keyboardAnnouncement.value = message })
+}
+function onViewerKeydown(event: KeyboardEvent): void {
+    if (status.value !== 'ready' || event.target !== event.currentTarget) return
+    const action = resolveViewerKeyboardAction(event)
+    if (!action || ((action === 'zoom-in' || action === 'zoom-out') && !viewport.value)) return
+    const command = createViewerKeyboardCommand(action, {
+        ...navigation.value,
+        zoom: viewport.value?.zoom ?? 1
+    })
+    if (!command) return
+
+    event.preventDefault()
+    try {
+        switch (command.type) {
+            case 'slice': setSlice(command.value); break
+            case 'frame': setFrame(command.value); break
+            case 'zoom': setViewportZoom(command.value); break
+            case 'reset-view': resetViewport(); break
+            case 'fit-view': fitToContainer(); break
+            case 'tool':
+                selectedTool.value = command.value
+                applyTool()
+                break
+        }
+        announceKeyboardAction(command.announcement)
+    } catch (error) {
+        reportViewportControlError(error)
+    }
 }
 function getAnnotations(): DicomAnnotations {
     if (!app || !dwv) return { version: 1, groups: [] }
@@ -924,6 +978,23 @@ defineExpose({
     overflow: hidden;
 }
 
+.dicom-viewer:focus-visible {
+    outline: 2px solid #67e8f9;
+    outline-offset: -2px;
+}
+
+.dicom-viewer__sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 .dicom-viewer__canvas {
     width: 100%;
     height: 100%;
@@ -970,6 +1041,11 @@ defineExpose({
 .dicom-viewer__annotation-list li > button.is-selected { color: #67e8f9; border-color: #67e8f9; }
 .dicom-viewer__annotation-list li small { color: #cbd5e1; }
 .dicom-viewer__annotation-swatch { width: 12px; height: 12px; border: 1px solid rgb(255 255 255 / 60%); border-radius: 50%; }
+.dicom-viewer__keyboard-help { width: 100%; }
+.dicom-viewer__keyboard-help summary { cursor: pointer; font-weight: 600; }
+.dicom-viewer__keyboard-help dl { display: grid; grid-template-columns: minmax(9rem, auto) 1fr; gap: 4px 12px; margin: 8px 0 0; }
+.dicom-viewer__keyboard-help dt { font-weight: 600; }
+.dicom-viewer__keyboard-help dd { margin: 0; color: #cbd5e1; }
 .dicom-viewer__navigation { display: grid; width: 100%; gap: 8px; }
 .dicom-viewer__navigation-axis { display: flex; width: 100%; align-items: center; gap: 8px; }
 .dicom-viewer__navigation-axis input[type=range] { flex: 1; min-width: 40px; }
