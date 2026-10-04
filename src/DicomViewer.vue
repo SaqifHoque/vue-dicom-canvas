@@ -1,7 +1,7 @@
 <template>
     <div
         class="dicom-viewer"
-        :class="`dicom-viewer--${status}`"
+        :class="[`dicom-viewer--${status}`, `dicom-viewer--${viewerLayout}`]"
         :style="viewerStyle"
         :aria-busy="status === 'loading'"
         :aria-label="ariaLabel"
@@ -185,6 +185,7 @@ import {
     type DicomNavigationState
 } from './navigation'
 import { normaliseDicomSource } from './source-utils'
+import { getViewerLayout, type DicomViewerLayout } from './responsive'
 import type { DicomSource, DicomViewerProps, DicomViewerStatus } from './types'
 import {
     applyViewportPan,
@@ -274,6 +275,7 @@ const navigation = ref<DicomNavigationState>({ slice: 1, sliceCount: 1, frame: 1
 const windowLevel = ref<DicomWindowLevelState | null>(null)
 const viewport = ref<DicomViewportState | null>(null)
 const keyboardAnnouncement = ref('')
+const viewerLayout = ref<DicomViewerLayout>('wide')
 const selectedAnnotation = ref<DicomAnnotationSelection | null>(null)
 const annotationSummaries = ref<DicomAnnotationSummary[]>([])
 const history = new AnnotationHistoryController()
@@ -698,6 +700,10 @@ function restoreProvidedAnnotations(announce = false) {
 }
 
 let resizeObserver: ResizeObserver | null = null
+function syncViewerLayout(): void {
+    const width = container.value?.clientWidth
+    if (typeof width === 'number' && width >= 0) viewerLayout.value = getViewerLayout(width)
+}
 let isMounted = false
 const loadSessions = new LoadSessionController()
 let lastSource: DicomSource = null
@@ -877,10 +883,12 @@ const initialise = async (): Promise<void> => {
 
     if (typeof ResizeObserver !== 'undefined' && container.value) {
         resizeObserver = new ResizeObserver(() => {
+            syncViewerLayout()
             if (status.value === 'ready' && props.autoFit) fitToContainer()
         })
         resizeObserver.observe(container.value)
     }
+    syncViewerLayout()
 }
 
 onMounted(async () => {
@@ -1051,4 +1059,46 @@ defineExpose({
 .dicom-viewer__navigation-axis input[type=range] { flex: 1; min-width: 40px; }
 .dicom-viewer__navigation-axis input[type=number] { width: 5em; }
 .dicom-viewer__settings :focus-visible, .dicom-viewer__toggle:focus-visible { outline: 2px solid #67e8f9; outline-offset: 2px; }
+
+.dicom-viewer--compact .dicom-viewer__settings {
+    max-height: 68%;
+    align-items: stretch;
+}
+.dicom-viewer--compact .dicom-viewer__window-level,
+.dicom-viewer--compact .dicom-viewer__annotation-editor { flex-wrap: wrap; }
+
+.dicom-viewer--narrow .dicom-viewer__settings {
+    inset: auto 6px 6px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    max-height: 72%;
+    padding: 8px;
+}
+.dicom-viewer--narrow .dicom-viewer__settings > label,
+.dicom-viewer--narrow .dicom-viewer__tool-help,
+.dicom-viewer--narrow .dicom-viewer__viewport-controls,
+.dicom-viewer--narrow .dicom-viewer__window-level,
+.dicom-viewer--narrow .dicom-viewer__annotation-editor,
+.dicom-viewer--narrow .dicom-viewer__annotation-list,
+.dicom-viewer--narrow .dicom-viewer__keyboard-help,
+.dicom-viewer--narrow .dicom-viewer__navigation { grid-column: 1 / -1; }
+.dicom-viewer--narrow .dicom-viewer__viewport-controls,
+.dicom-viewer--narrow .dicom-viewer__window-level,
+.dicom-viewer--narrow .dicom-viewer__annotation-editor,
+.dicom-viewer--narrow .dicom-viewer__navigation-axis { flex-wrap: wrap; }
+.dicom-viewer--narrow .dicom-viewer__settings select,
+.dicom-viewer--narrow .dicom-viewer__annotation-editor input[type=text] { min-width: 0; max-width: 100%; }
+.dicom-viewer--narrow .dicom-viewer__navigation-axis input[type=range] { order: 3; flex-basis: 100%; }
+
+@media (pointer: coarse) {
+    .dicom-viewer__toggle,
+    .dicom-viewer__settings button,
+    .dicom-viewer__settings select,
+    .dicom-viewer__settings input[type=number],
+    .dicom-viewer__settings input[type=text],
+    .dicom-viewer__settings summary { min-height: 44px; }
+    .dicom-viewer__settings input[type=range] { min-height: 44px; }
+    .dicom-viewer__settings input[type=checkbox] { width: 24px; height: 24px; }
+    .dicom-viewer__settings input[type=color] { width: 44px; height: 44px; }
+}
 </style>
