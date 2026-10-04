@@ -13,6 +13,7 @@ Vue DICOM Canvas wraps [DWV](https://github.com/ivmartel/dwv) in a typed Vue com
 - Undo/redo, synchronized zoom/pan controls, window/level presets and numeric adjustment, and fit-to-container.
 - Settings overlay with an accessible gear toggle.
 - Focus-scoped keyboard navigation, viewport actions, tool selection, and live announcements.
+- Responsive controls with coarse-pointer touch targets and active-tool gesture guidance.
 - Annotation snapshots that retain image/frame references, geometry, colors, and labels.
 - A collapsible annotation list that selects marks and jumps to their referenced slice and frame.
 - Vue `v-model:annotations` and imperative export/restore methods.
@@ -115,6 +116,8 @@ For monochrome images, the **Contrast** controls list the presets supplied by th
 The **View** controls show zoom relative to the fitted image size and provide bounded zoom-out, zoom-in, reset, and fit actions. `getViewportState()` returns `{ zoom, pan: { x, y }, isDefault }`. Use `setViewportZoom(factor)` for 0.1× through 10× zoom, `setViewportPan({ x, y })` for an absolute offset, and `resetViewport()` to restore 1× with no pan. `viewport-change` also tracks mouse and touch changes from DWV's Zoom / pan tool. Image and annotation layers share the same DWV layer-group transform, including after container resize.
 
 When an image is ready, tab to the viewer to use its keyboard shortcuts. Left/right arrows or Page Up/Page Down move between slices; up/down arrows move between frames when temporal frames exist. Plus and minus change zoom, `0` resets the view, `F` fits the image, and `S`, `Z`, and `W` select the scroll, zoom/pan, and window/level tools. These unmodified keys act only while the viewer region itself has focus, so controls, links, editable content, and browser modifier shortcuts keep their normal behavior. The settings panel lists the same shortcuts, and `viewerKeyboardShortcuts` exports that list for custom interfaces.
+
+The controls adapt at 720px and 480px viewer widths rather than relying on the page viewport, so the component also works in narrow dashboard columns. Coarse pointers receive 44px targets. The canvas owns imaging gestures while the settings panel keeps vertical scrolling: the active tool's help text explains whether one-finger drags navigate, pan, adjust contrast, or draw, and the Zoom / pan tool documents its two-finger zoom and slice gesture. Pointer capture keeps an active touch associated with the canvas and clears interaction state after release, cancellation, lost capture, or component teardown.
 
 Restoring or clearing annotations starts a new undo/redo boundary. Edits made before that replacement cannot be reached with the built-in Undo button, while new drawings can be undone and redone normally. Before changing any marks, the viewer validates the snapshot structure and size, then checks its study, image, frame, and shape references against the loaded DICOM data. A failed restore leaves the current marks and history boundary intact. Invalid prop-based restores emit `annotation-error`; invalid imperative restores throw. Resetting the viewer does not erase the parent's saved annotation value.
 

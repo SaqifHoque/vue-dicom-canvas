@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Touch and responsive controls
+
+- Adapt settings, navigation, and editing controls at compact and narrow viewer widths.
+- Increase coarse-pointer targets and keep the settings panel independently touch-scrollable.
+- Add active-tool touch guidance and clear tracked gestures after pointer release, cancellation, or lost capture.
+
 ## Unreleased — Keyboard accessibility
 
 - Make the ready viewer focusable and add scoped navigation, zoom, fit, reset, and tool shortcuts.

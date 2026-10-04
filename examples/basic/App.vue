@@ -40,7 +40,7 @@ function restore() {
 <template>
     <main>
         <h1>DICOM viewer</h1>
-        <p>Navigate the 12-slice sample, select a shape and color, and drag to mark. Controls live inside the image.</p>
+        <p>Navigate the 12-slice sample, select a shape and color, and drag to mark. Controls live inside the image and adapt to touch and narrow screens.</p>
         <div class="demo-actions">
             <label>Open DICOM files <input type="file" multiple @change="selectFiles" /></label>
             <button @click="showSample">Load sample</button>
@@ -69,4 +69,8 @@ p { color: #a7b8cd; line-height: 1.6; }
 .demo-actions button { padding: 8px 12px; cursor: pointer; }
 details { margin-top: 20px; }
 textarea { width: 100%; height: 120px; box-sizing: border-box; }
+@media (max-width: 600px) {
+    main { padding: 12px; }
+    .demo-actions button, .demo-actions input { min-height: 44px; }
+}
 </style>
