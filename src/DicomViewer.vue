@@ -1,11 +1,15 @@
 <template>
     <div
         class="dicom-viewer"
-        :class="[`dicom-viewer--${status}`, `dicom-viewer--${viewerLayout}`]"
+        :class="[
+            `dicom-viewer--${status}`,
+            `dicom-viewer--${viewerLayout}`,
+            { 'dicom-viewer--touch-active': touchPointerState.active, 'dicom-viewer--multi-touch': touchPointerState.multiTouch }
+        ]"
         :style="viewerStyle"
         :aria-busy="status === 'loading'"
         :aria-label="ariaLabel"
-        :aria-describedby="`${containerId}-keyboard-description`"
+        :aria-describedby="`${containerId}-keyboard-description ${containerId}-touch-description`"
         :tabindex="status === 'ready' ? 0 : -1"
         role="region"
         @keydown="onViewerKeydown"
@@ -13,8 +17,18 @@
         <p :id="`${containerId}-keyboard-description`" class="dicom-viewer__sr-only">
             When the viewer is focused, use the arrow keys to navigate. Open settings for all keyboard shortcuts.
         </p>
+        <p :id="`${containerId}-touch-description`" class="dicom-viewer__sr-only">{{ touchInteraction.instruction }}</p>
         <p class="dicom-viewer__sr-only" aria-live="polite" aria-atomic="true">{{ keyboardAnnouncement }}</p>
-        <div :id="containerId" ref="container" class="dicom-viewer__canvas" />
+        <div
+            :id="containerId"
+            ref="container"
+            class="dicom-viewer__canvas"
+            :data-touch-mode="touchInteraction.mode"
+            @pointerdown="trackTouchPointer"
+            @pointerup="trackTouchPointer"
+            @pointercancel="trackTouchPointer"
+            @lostpointercapture="trackTouchPointer"
+        />
 
         <div v-if="status === 'loading'" class="dicom-viewer__overlay">
             <slot name="loading">Loading DICOM image…</slot>
@@ -46,6 +60,7 @@
                     <option v-for="shape in enabledDrawingShapeDefinitions" :key="shape.name" :value="shape.name" :disabled="readOnly || !annotationsVisible">{{ shape.label }}</option>
                 </select></label>
                 <small v-if="activeDrawingShape" class="dicom-viewer__tool-help">{{ activeDrawingShape.instruction }}</small>
+                <small class="dicom-viewer__touch-help">{{ touchInteraction.instruction }}</small>
                 <label>Color <input v-model="colour" type="color" :disabled="readOnly" @input="applyTool" /></label>
                 <label><input v-model="annotationsVisible" type="checkbox" /> Show marks</label>
                 <button :disabled="readOnly || !historyState.canUndo" @click="undo">Undo</button><button :disabled="readOnly || !historyState.canRedo" @click="redo">Redo</button>
@@ -186,6 +201,7 @@ import {
 } from './navigation'
 import { normaliseDicomSource } from './source-utils'
 import { getViewerLayout, type DicomViewerLayout } from './responsive'
+import { getTouchInteraction, TouchPointerTracker } from './touch'
 import type { DicomSource, DicomViewerProps, DicomViewerStatus } from './types'
 import {
     applyViewportPan,
@@ -270,12 +286,15 @@ const selectedTool = ref('Scroll')
 const enabledDrawingShapes = normaliseDrawingShapes(props.drawingShapes)
 const enabledDrawingShapeDefinitions = drawingShapeDefinitions.filter(shape => enabledDrawingShapes.includes(shape.name))
 const activeDrawingShape = computed(() => enabledDrawingShapeDefinitions.find(shape => shape.name === selectedTool.value))
+const touchInteraction = computed(() => getTouchInteraction(selectedTool.value, activeDrawingShape.value?.instruction))
 const colour = ref('#ffff80')
 const navigation = ref<DicomNavigationState>({ slice: 1, sliceCount: 1, frame: 1, frameCount: 1 })
 const windowLevel = ref<DicomWindowLevelState | null>(null)
 const viewport = ref<DicomViewportState | null>(null)
 const keyboardAnnouncement = ref('')
 const viewerLayout = ref<DicomViewerLayout>('wide')
+const touchPointers = new TouchPointerTracker()
+const touchPointerState = ref(touchPointers.getState())
 const selectedAnnotation = ref<DicomAnnotationSelection | null>(null)
 const annotationSummaries = ref<DicomAnnotationSummary[]>([])
 const history = new AnnotationHistoryController()
@@ -575,6 +594,13 @@ function applyTool() {
     if (!drawing && isDicomDrawingShape(selectedTool.value)) selectedTool.value = 'Scroll'
     app.setTool(drawing ? 'Draw' : selectedTool.value)
     if (drawing) app.setToolFeatures({ shapeName: selectedTool.value, shapeColour: colour.value })
+}
+function trackTouchPointer(event: PointerEvent): void {
+    if (event.type === 'pointerdown' && event.pointerType === 'touch') {
+        try { (event.currentTarget as Element).setPointerCapture(event.pointerId) }
+        catch { /* Pointer capture may be unavailable after an interrupted contact. */ }
+    }
+    touchPointerState.value = touchPointers.update(event)
 }
 function announceKeyboardAction(message: string): void {
     keyboardAnnouncement.value = ''
@@ -927,6 +953,7 @@ watch(() => props.annotations, value => {
 
 onBeforeUnmount(() => {
     isMounted = false
+    touchPointerState.value = touchPointers.reset()
     loadSessions.cancel({ status: 'aborted', reason: 'unmount' })
     resizeObserver?.disconnect()
     if (app) {
@@ -1006,7 +1033,11 @@ defineExpose({
 .dicom-viewer__canvas {
     width: 100%;
     height: 100%;
+    touch-action: none;
 }
+
+.dicom-viewer--touch-active { user-select: none; }
+.dicom-viewer--multi-touch .dicom-viewer__toggle { pointer-events: none; }
 
 .dicom-viewer__overlay {
     position: absolute;
@@ -1028,12 +1059,13 @@ defineExpose({
 .dicom-viewer__error-content button { border: 1px solid currentColor; border-radius: 5px; padding: 6px 12px; background: #450a0a; color: inherit; cursor: pointer; }
 .dicom-viewer__toggle { position: absolute; top: 10px; right: 10px; z-index: 5; display: grid; place-items: center; width: 40px; height: 40px; }
 .dicom-viewer__toggle[aria-expanded=true] { color: #67e8f9; border-color: #67e8f9; }
-.dicom-viewer__settings { position: absolute; bottom: 12px; left: 12px; right: 12px; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px; border-radius: 8px; background: rgb(15 23 42 / 88%); color: white; font: 13px system-ui, sans-serif; max-height: 60%; overflow: auto; }
+.dicom-viewer__settings { position: absolute; bottom: 12px; left: 12px; right: 12px; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px; border-radius: 8px; background: rgb(15 23 42 / 88%); color: white; font: 13px system-ui, sans-serif; max-height: 60%; overflow: auto; overscroll-behavior: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch; }
 .dicom-viewer__settings label { display: flex; align-items: center; gap: 6px; }
 .dicom-viewer__settings button, .dicom-viewer__toggle, .dicom-viewer__settings select { border: 1px solid #64748b; border-radius: 5px; padding: 6px 9px; background: #1e293b; color: white; cursor: pointer; font: inherit; }
 .dicom-viewer__settings button:disabled { opacity: .4; cursor: default; }
 .dicom-viewer__settings input[type=color] { width: 36px; height: 28px; padding: 0; border: 0; }
 .dicom-viewer__tool-help { color: #cbd5e1; }
+.dicom-viewer__touch-help { width: 100%; color: #cbd5e1; }
 .dicom-viewer__viewport-controls { display: flex; align-items: center; gap: 8px; }
 .dicom-viewer__viewport-controls output { min-width: 3.5em; text-align: center; font-variant-numeric: tabular-nums; }
 .dicom-viewer__window-level { display: flex; width: 100%; align-items: center; gap: 8px; }
