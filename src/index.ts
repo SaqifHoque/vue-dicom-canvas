@@ -21,3 +21,5 @@ export type {
 } from './keyboard'
 export type { DicomLoadResult } from './load-session'
 export { DicomWorkerLoadError } from './worker-runtime'
+export { dicomWorkerFiles } from './worker-config'
+export type { DicomWorkerFile } from './worker-config'

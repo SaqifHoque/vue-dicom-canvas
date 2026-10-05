@@ -84,14 +84,26 @@ function openFiles(event: Event) {
 
 ## Worker assets
 
-The package targets DWV `>=0.36.4 <0.37.0` and Vue `>=3.4.0 <4.0.0`. DWV loads decoding workers from `assets/workers` relative to the application page. For a Vite consumer:
+The package targets DWV `>=0.36.4 <0.37.0` and Vue `>=3.4.0 <4.0.0`. Copy the packaged worker files to your application's public assets during setup or build. For a Vite consumer:
 
 ```sh
 mkdir -p public/assets/workers
 cp node_modules/@ys-reading/vue-dicom-canvas/workers/*.min.js public/assets/workers/
 ```
 
-Automate this copy during application setup or build. Worker requests must return JavaScript rather than an HTML fallback. The included demo copies workers automatically. Uncompressed DICOM images do not require a decoder worker.
+Then configure the same directory on the viewer:
+
+```vue
+<DicomViewer
+    :source="source"
+    worker-base-path="/assets/workers/"
+    @worker-error="reportWorkerError"
+/>
+```
+
+Use a document-relative path for an application deployed below the origin root, such as `worker-base-path="./assets/workers/"` at `/radiology/index.html`. The path resolves against `document.baseURI`, must remain on the application's HTTP(S) origin, and is read when the component mounts. Only the six names in the exported `dicomWorkerFiles` list are redirected; other application workers keep their original URLs. All mounted viewers must use the same path.
+
+The `worker-error` event receives a `DicomWorkerLoadError` containing the resolved `workerUrl` when a decoder cannot load. A worker request returning an HTML fallback, a missing copied file, or an incorrect subpath will therefore identify the exact URL to fix. The included demo copies the packaged directory and configures its relative path automatically. Uncompressed DICOM images do not require a decoder worker.
 
 ## Save annotations in your database
 
@@ -142,6 +154,7 @@ Snapshots use this package's versioned JSON format, containing DWV DICOM SR elem
 | `viewerId` | generated | Unique DOM identifier; keep stable after mount. |
 | `tools` | built-in tools | DWV tool configuration overrides, read at mount. |
 | `drawingShapes` | all supported shapes | Built-in drawing shapes shown in the selector, read at mount. |
+| `workerBasePath` | `''` | Same-origin directory for packaged DWV workers, read at mount; empty preserves DWV's native resolution. |
 | `maxSources` | `2000` | Maximum files or URLs per load. |
 | `maxFileSizeBytes` | `536870912` | Maximum individual local file size. |
 | `maxTotalFileSizeBytes` | `2147483648` | Maximum combined local file size. |
@@ -150,7 +163,7 @@ Snapshots use this package's versioned JSON format, containing DWV DICOM SR elem
 
 ### Events, slots, and methods
 
-- **Events:** `load-start`, `load-progress`, `loaded`, `error`, `load-abort`, `load-timeout`, `annotation-error`, `annotation-list-change`, `annotation-selection-change`, `window-level-change`, `window-level-error`, `viewport-change`, `viewport-error`, `update:annotations`, `update:annotationsVisible`, `annotations-change`, `history-change`, `navigation-change`, and `update:settingsOpen`.
+- **Events:** `load-start`, `load-progress`, `loaded`, `error`, `load-abort`, `load-timeout`, `worker-error`, `annotation-error`, `annotation-list-change`, `annotation-selection-change`, `window-level-change`, `window-level-error`, `viewport-change`, `viewport-error`, `update:annotations`, `update:annotationsVisible`, `annotations-change`, `history-change`, `navigation-change`, and `update:settingsOpen`.
 - **Slots:** `loading`, `empty`, and `error`. The error slot receives `{ error, retry }`. The default error display includes a Retry button.
 - **Methods:** `load(source?)`, `retry()`, `reset()`, `fitToContainer()`, `getViewportState()`, `setViewportZoom(factor)`, `setViewportPan(point)`, `resetViewport()`, `setSlice(oneBasedIndex)`, `setFrame(oneBasedIndex)`, `getNavigationState()`, `getWindowLevelState()`, `setWindowLevel(value)`, `setWindowLevelPreset(name)`, `resetWindowLevel()`, `getAnnotations()`, `setAnnotations(snapshot)`, `getAnnotationSummaries()`, `selectAnnotation(uid)`, `getSelectedAnnotation()`, `updateSelectedAnnotation(edit)`, `deleteSelectedAnnotation()`, `getHistoryState()`, `getStatus()`, and `getApp()`.
 

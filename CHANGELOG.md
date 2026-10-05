@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Configurable worker deployment
+
+- Add a validated same-origin `workerBasePath` for root and subpath deployments.
+- Redirect only packaged DWV workers while preserving unrelated application workers and multiple-viewer references.
+- Emit `worker-error` with the resolved missing-worker URL and document compressed-image deployment.
+
 ## Unreleased — Touch and responsive controls
 
 - Adapt settings, navigation, and editing controls at compact and narrow viewer widths.
