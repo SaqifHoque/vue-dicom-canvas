@@ -14,7 +14,7 @@ Until a dedicated security contact is configured, do not publish sensitive detai
 
 - This component renders untrusted DICOM input through DWV and its Web Workers. It is not a sandbox or a certified medical device.
 - Remote DICOM access follows browser same-origin and CORS rules. Never place access tokens, credentials, or PHI in public URLs.
-- Decoder workers must be served from the application's own trusted origin. Do not accept worker locations from end users.
+- Decoder workers must be served from the application's own trusted origin. `workerBasePath` enforces this boundary; configure it from trusted application code and never accept worker locations from end users.
 - ZIP input is disabled by default to reduce decompression-bomb risk. Enabling it is appropriate only for trusted, size-limited archives.
 - Annotation JSON is treated as untrusted input. Snapshot size, group, mark, and text limits are enforced before DWV parsing, and references must match the loaded study before existing marks are changed.
 - Consumers should set a restrictive Content Security Policy and keep `vue`, `dwv`, and this package updated.
