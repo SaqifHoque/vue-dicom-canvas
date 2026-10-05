@@ -219,6 +219,7 @@ import {
     type DicomWindowLevel,
     type DicomWindowLevelState
 } from './window-level'
+import { DicomWorkerLoadError, installDicomWorkerResolver } from './worker-runtime'
 
 const props = withDefaults(
     defineProps<DicomViewerProps>(),
@@ -228,6 +229,7 @@ const props = withDefaults(
         annotationsVisible: true,
         readOnly: false,
         drawingShapes: () => defaultDrawingShapes,
+        workerBasePath: '',
         showControls: true,
         settingsOpen: true,
         viewerId: '',
@@ -257,6 +259,7 @@ const emit = defineEmits<{
     'window-level-error': [error: Error]
     'viewport-change': [viewport: DicomViewportState | null]
     'viewport-error': [error: Error]
+    'worker-error': [error: DicomWorkerLoadError]
     'update:settingsOpen': [open: boolean]
     'load-start': [event: unknown]
     'load-progress': [event: unknown]
@@ -726,6 +729,7 @@ function restoreProvidedAnnotations(announce = false) {
 }
 
 let resizeObserver: ResizeObserver | null = null
+let releaseWorkerResolver: (() => void) | null = null
 function syncViewerLayout(): void {
     const width = container.value?.clientWidth
     if (typeof width === 'number' && width >= 0) viewerLayout.value = getViewerLayout(width)
@@ -885,6 +889,12 @@ const load = async (source: DicomSource = props.source): Promise<DicomLoadResult
 const retry = (): Promise<DicomLoadResult> => load(lastSource)
 
 const initialise = async (): Promise<void> => {
+    if (props.workerBasePath) {
+        releaseWorkerResolver = installDicomWorkerResolver({
+            workerBasePath: props.workerBasePath,
+            documentUrl: document.baseURI
+        }, workerError => emit('worker-error', workerError))
+    }
     dwv = await loadDwv()
     const { App, AppOptions, ViewConfig, ToolConfig } = dwv
     if (!isMounted) return
@@ -974,6 +984,8 @@ onBeforeUnmount(() => {
         app.reset()
     }
     app = null
+    releaseWorkerResolver?.()
+    releaseWorkerResolver = null
 })
 
 defineExpose({

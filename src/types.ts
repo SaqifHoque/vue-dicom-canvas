@@ -14,6 +14,8 @@ export interface DicomViewerProps {
     tools?: Record<string, import('dwv').ToolConfig>
     /** Built-in DWV annotation shapes shown in the tool selector; read at mount. */
     drawingShapes?: readonly import('./drawing-shapes').DicomDrawingShape[]
+    /** Same-origin directory containing the packaged DWV workers; read at mount. */
+    workerBasePath?: string
     source?: DicomSource
     viewerId?: string
     width?: string | number

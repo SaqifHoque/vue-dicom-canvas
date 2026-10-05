@@ -20,3 +20,4 @@ export type {
     DicomViewerKeyboardState
 } from './keyboard'
 export type { DicomLoadResult } from './load-session'
+export { DicomWorkerLoadError } from './worker-runtime'
