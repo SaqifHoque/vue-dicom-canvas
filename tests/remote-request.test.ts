@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { createDwvUrlRequestOptions } from '../src/remote-request'
+import { createDwvUrlRequestOptions, RemoteRequestOptionsStore } from '../src/remote-request'
 
 describe('remote DICOM request options', () => {
     it('maps typed headers, credentials, and batching to DWV options', () => {
@@ -52,5 +52,21 @@ describe('remote DICOM request options', () => {
         assert.throws(() => createDwvUrlRequestOptions({ withCredentials: 'yes' as unknown as boolean }), /boolean/)
         assert.throws(() => createDwvUrlRequestOptions({ batchSize: 0 }), /1 through 1000/)
         assert.throws(() => createDwvUrlRequestOptions({ batchSize: 1.5 }), /integer/)
+    })
+
+    it('isolates retry credentials and clears them when a request is cancelled', () => {
+        const store = new RemoteRequestOptionsStore()
+        const header = { name: 'Authorization', value: 'Bearer first' }
+        const prepared = store.prepare({ headers: [header], withCredentials: true })
+        header.value = 'Bearer changed'
+
+        assert.equal(prepared?.requestHeaders?.[0]?.value, 'Bearer first')
+        const retry = store.getRetryOptions()
+        assert.equal(retry?.headers?.[0]?.value, 'Bearer first')
+        retry!.headers![0]!.value = 'Bearer mutated retry'
+        assert.equal(store.getRetryOptions()?.headers?.[0]?.value, 'Bearer first')
+
+        store.clear()
+        assert.equal(store.getRetryOptions(), undefined)
     })
 })

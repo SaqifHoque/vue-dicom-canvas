@@ -82,3 +82,30 @@ export function createDwvUrlRequestOptions(
     if (options.batchSize !== undefined) result.batchSize = options.batchSize
     return Object.keys(result).length ? result : undefined
 }
+
+/** Keeps only the detached options needed to retry the current request. */
+export class RemoteRequestOptionsStore {
+    #retryOptions: DicomRemoteRequestOptions | undefined
+
+    prepare(options: DicomRemoteRequestOptions | null | undefined): DwvUrlRequestOptions | undefined {
+        const prepared = createDwvUrlRequestOptions(options)
+        this.#retryOptions = prepared ? {
+            headers: prepared.requestHeaders?.map(header => ({ ...header })),
+            withCredentials: prepared.withCredentials,
+            batchSize: prepared.batchSize
+        } : undefined
+        return prepared
+    }
+
+    getRetryOptions(): DicomRemoteRequestOptions | undefined {
+        return this.#retryOptions ? {
+            headers: this.#retryOptions.headers?.map(header => ({ ...header })),
+            withCredentials: this.#retryOptions.withCredentials,
+            batchSize: this.#retryOptions.batchSize
+        } : undefined
+    }
+
+    clear(): void {
+        this.#retryOptions = undefined
+    }
+}
