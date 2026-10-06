@@ -20,6 +20,7 @@ export type {
     DicomViewerKeyboardState
 } from './keyboard'
 export type { DicomLoadResult } from './load-session'
+export type { DicomRemoteRequestOptions, DicomRequestHeader } from './remote-request'
 export { DicomWorkerLoadError } from './worker-runtime'
 export { dicomWorkerFiles } from './worker-config'
 export type { DicomWorkerFile } from './worker-config'
