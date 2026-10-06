@@ -200,6 +200,10 @@ import {
     type DicomNavigationState
 } from './navigation'
 import { normaliseDicomSource } from './source-utils'
+import {
+    type DicomRemoteRequestOptions,
+    RemoteRequestOptionsStore
+} from './remote-request'
 import { getViewerLayout, type DicomViewerLayout } from './responsive'
 import { getTouchInteraction, TouchPointerTracker } from './touch'
 import type { DicomSource, DicomViewerProps, DicomViewerStatus } from './types'
@@ -737,6 +741,7 @@ function syncViewerLayout(): void {
 let isMounted = false
 const loadSessions = new LoadSessionController()
 let lastSource: DicomSource = null
+const remoteRequestOptionsStore = new RemoteRequestOptionsStore()
 
 const toError = (value: unknown): Error => {
     if (value instanceof Error) return value
@@ -839,9 +844,14 @@ const clearViewer = (): void => {
 const reset = (): void => {
     if (loadSessions.cancel({ status: 'aborted', reason: 'reset' })) emit('load-abort', 'reset')
     clearViewer()
+    lastSource = null
+    remoteRequestOptionsStore.clear()
 }
 
-const load = async (source: DicomSource = props.source): Promise<DicomLoadResult> => {
+const load = async (
+    source: DicomSource = props.source,
+    remoteRequestOptions: DicomRemoteRequestOptions | undefined = props.remoteRequestOptions
+): Promise<DicomLoadResult> => {
     if (!app) {
         const loadError = new Error('The DICOM viewer is not ready yet.')
         return { status: 'error', error: loadError }
@@ -849,8 +859,13 @@ const load = async (source: DicomSource = props.source): Promise<DicomLoadResult
 
     loadSessions.cancel({ status: 'superseded' })
     clearViewer()
-    if (!source) return { status: 'empty' }
+    if (!source) {
+        lastSource = null
+        remoteRequestOptionsStore.clear()
+        return { status: 'empty' }
+    }
     lastSource = source
+    remoteRequestOptionsStore.clear()
     const session: DicomLoadSession = loadSessions.begin()
 
     await nextTick()
@@ -866,6 +881,9 @@ const load = async (source: DicomSource = props.source): Promise<DicomLoadResult
             loadSessions.cancel({ status: 'superseded' })
             return { status: 'empty' }
         }
+        const dwvRequestOptions = normalisedSource.kind === 'urls'
+            ? remoteRequestOptionsStore.prepare(remoteRequestOptions)
+            : undefined
 
         if (normalisedSource.kind === 'files' && !props.allowArchives) {
             const archiveResults = await Promise.all(normalisedSource.values.map(isZipFile))
@@ -877,7 +895,7 @@ const load = async (source: DicomSource = props.source): Promise<DicomLoadResult
         hasSource.value = true
         const dataId = normalisedSource.kind === 'files'
             ? app.loadFiles(normalisedSource.values)
-            : app.loadURLs(normalisedSource.values)
+            : app.loadURLs(normalisedSource.values, dwvRequestOptions)
         if (dataId === '-1') throw new Error('DWV could not start the DICOM load.')
         loadSessions.bind(session, dataId)
     } catch (value) {
@@ -886,7 +904,7 @@ const load = async (source: DicomSource = props.source): Promise<DicomLoadResult
     return session.result
 }
 
-const retry = (): Promise<DicomLoadResult> => load(lastSource)
+const retry = (): Promise<DicomLoadResult> => load(lastSource, remoteRequestOptionsStore.getRetryOptions())
 
 const initialise = async (): Promise<void> => {
     if (props.workerBasePath) {
@@ -963,6 +981,7 @@ watch(() => props.annotations, value => {
 
 onBeforeUnmount(() => {
     isMounted = false
+    remoteRequestOptionsStore.clear()
     touchPointerState.value = touchPointers.reset()
     loadSessions.cancel({ status: 'aborted', reason: 'unmount' })
     resizeObserver?.disconnect()

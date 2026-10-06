@@ -16,6 +16,8 @@ export interface DicomViewerProps {
     drawingShapes?: readonly import('./drawing-shapes').DicomDrawingShape[]
     /** Same-origin directory containing the packaged DWV workers; read at mount. */
     workerBasePath?: string
+    /** Headers, cookie credentials, and batching applied to subsequent URL loads. */
+    remoteRequestOptions?: import('./remote-request').DicomRemoteRequestOptions
     source?: DicomSource
     viewerId?: string
     width?: string | number

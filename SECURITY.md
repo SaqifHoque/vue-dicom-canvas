@@ -13,7 +13,8 @@ Until a dedicated security contact is configured, do not publish sensitive detai
 ## Security boundaries
 
 - This component renders untrusted DICOM input through DWV and its Web Workers. It is not a sandbox or a certified medical device.
-- Remote DICOM access follows browser same-origin and CORS rules. Never place access tokens, credentials, or PHI in public URLs.
+- Remote DICOM access follows browser same-origin and CORS rules. Never place access tokens, credentials, or PHI in public URLs. Configure trusted headers through `remoteRequestOptions`; use `withCredentials` for cookies, and require an explicit allowed origin plus `Access-Control-Allow-Credentials: true` on credentialed cross-origin servers.
+- Request options are bounded, reject browser-controlled and newline-containing headers, and are copied per load. Replacement, reset, and teardown abort active requests; do not log or persist the original option object.
 - Decoder workers must be served from the application's own trusted origin. `workerBasePath` enforces this boundary; configure it from trusted application code and never accept worker locations from end users.
 - ZIP input is disabled by default to reduce decompression-bomb risk. Enabling it is appropriate only for trusted, size-limited archives.
 - Annotation JSON is treated as untrusted input. Snapshot size, group, mark, and text limits are enforced before DWV parsing, and references must match the loaded study before existing marks are changed.

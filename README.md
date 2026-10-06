@@ -82,6 +82,23 @@ function openFiles(event: Event) {
 
 `source` accepts a `File`, URL string, array of files, array of URLs, or `null`. Arrays must contain only one source kind. Supply a new array to change a series. Remote requests follow browser CORS rules; local files are processed in the browser and are not uploaded by this package.
 
+Authenticated URL loading uses `remoteRequestOptions`. Pass an `Authorization` header for token authentication, enable `withCredentials` for browser-managed cookies, and optionally limit concurrent URL requests with `batchSize`:
+
+```vue
+<DicomViewer
+    :source="protectedSeries"
+    :remote-request-options="{
+        headers: [{ name: 'Authorization', value: `Bearer ${accessToken}` }],
+        withCredentials: true,
+        batchSize: 4
+    }"
+/>
+```
+
+Options are validated and copied when each URL load starts. A replacement load aborts the active DWV requests before applying its own snapshot; retry receives an isolated copy, and reset or teardown removes retained credentials. The imperative `load(source, remoteRequestOptions?)` method supports per-load options. Local `File` sources never receive remote request options.
+
+Cross-origin servers must allow the application origin, requested methods, and custom headers such as `Authorization`. Credentialed cookie requests also require `Access-Control-Allow-Credentials: true` and an explicit allowed origin rather than `*`. Keep tokens out of URLs, logs, persisted annotation data, and source-control files. Browser-controlled headers such as `Cookie`, `Host`, `Origin`, `Referer`, and `Sec-*` cannot be forwarded; use `withCredentials` for cookies.
+
 ## Worker assets
 
 The package targets DWV `>=0.36.4 <0.37.0` and Vue `>=3.4.0 <4.0.0`. Copy the packaged worker files to your application's public assets during setup or build. For a Vite consumer:
@@ -155,6 +172,7 @@ Snapshots use this package's versioned JSON format, containing DWV DICOM SR elem
 | `tools` | built-in tools | DWV tool configuration overrides, read at mount. |
 | `drawingShapes` | all supported shapes | Built-in drawing shapes shown in the selector, read at mount. |
 | `workerBasePath` | `''` | Same-origin directory for packaged DWV workers, read at mount; empty preserves DWV's native resolution. |
+| `remoteRequestOptions` | `undefined` | Validated headers, cookie credentials, and batch size for subsequent URL loads. |
 | `maxSources` | `2000` | Maximum files or URLs per load. |
 | `maxFileSizeBytes` | `536870912` | Maximum individual local file size. |
 | `maxTotalFileSizeBytes` | `2147483648` | Maximum combined local file size. |
@@ -165,7 +183,7 @@ Snapshots use this package's versioned JSON format, containing DWV DICOM SR elem
 
 - **Events:** `load-start`, `load-progress`, `loaded`, `error`, `load-abort`, `load-timeout`, `worker-error`, `annotation-error`, `annotation-list-change`, `annotation-selection-change`, `window-level-change`, `window-level-error`, `viewport-change`, `viewport-error`, `update:annotations`, `update:annotationsVisible`, `annotations-change`, `history-change`, `navigation-change`, and `update:settingsOpen`.
 - **Slots:** `loading`, `empty`, and `error`. The error slot receives `{ error, retry }`. The default error display includes a Retry button.
-- **Methods:** `load(source?)`, `retry()`, `reset()`, `fitToContainer()`, `getViewportState()`, `setViewportZoom(factor)`, `setViewportPan(point)`, `resetViewport()`, `setSlice(oneBasedIndex)`, `setFrame(oneBasedIndex)`, `getNavigationState()`, `getWindowLevelState()`, `setWindowLevel(value)`, `setWindowLevelPreset(name)`, `resetWindowLevel()`, `getAnnotations()`, `setAnnotations(snapshot)`, `getAnnotationSummaries()`, `selectAnnotation(uid)`, `getSelectedAnnotation()`, `updateSelectedAnnotation(edit)`, `deleteSelectedAnnotation()`, `getHistoryState()`, `getStatus()`, and `getApp()`.
+- **Methods:** `load(source?, remoteRequestOptions?)`, `retry()`, `reset()`, `fitToContainer()`, `getViewportState()`, `setViewportZoom(factor)`, `setViewportPan(point)`, `resetViewport()`, `setSlice(oneBasedIndex)`, `setFrame(oneBasedIndex)`, `getNavigationState()`, `getWindowLevelState()`, `setWindowLevel(value)`, `setWindowLevelPreset(name)`, `resetWindowLevel()`, `getAnnotations()`, `setAnnotations(snapshot)`, `getAnnotationSummaries()`, `selectAnnotation(uid)`, `getSelectedAnnotation()`, `updateSelectedAnnotation(edit)`, `deleteSelectedAnnotation()`, `getHistoryState()`, `getStatus()`, and `getApp()`.
 
 Slice and frame positions are 1-based. For 4D data, `setSlice()` changes DWV's spatial scroll dimension without changing the temporal frame, while `setFrame()` changes the fourth dimension without changing the spatial slice. Invalid and out-of-range positions are ignored. `navigation-change` and `getNavigationState()` provide `{ slice, sliceCount, frame, frameCount }`; single-frame data always reports frame 1 of 1 and hides the frame controls.
 
