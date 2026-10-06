@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — Authenticated remote loading
+
+- Add typed headers, cookie credentials, and request batching for remote DICOM URL loads.
+- Validate and isolate options per load, preserve them safely for retry, and clear them on reset or teardown.
+- Reject browser-controlled, duplicated, malformed, oversized, and excessive request headers.
+- Document CORS, credentialed-server configuration, cancellation, and token-handling responsibilities.
+
 ## Unreleased — Configurable worker deployment
 
 - Add a validated same-origin `workerBasePath` for root and subpath deployments.
