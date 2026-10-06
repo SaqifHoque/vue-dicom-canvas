@@ -16,6 +16,7 @@ export interface DwvUrlRequestOptions {
 }
 
 const MAX_HEADERS = 64
+const MAX_HEADER_NAME_LENGTH = 256
 const MAX_HEADER_VALUE_LENGTH = 8192
 const MAX_BATCH_SIZE = 1000
 const HEADER_NAME_PATTERN = /^[!#$%&'*+.^_`|~\dA-Za-z-]+$/
@@ -39,9 +40,11 @@ function normaliseHeaders(headers: readonly DicomRequestHeader[] | undefined): D
     const names = new Set<string>()
     return headers.map((header) => {
         if (typeof header !== 'object' || header === null) throw new TypeError('Each remote request header must contain a name and value.')
-        const name = header.name?.trim()
+        const name = typeof header.name === 'string' ? header.name.trim() : ''
         const value = header.value
-        if (!name || !HEADER_NAME_PATTERN.test(name)) throw new TypeError('Remote request header names must be valid HTTP tokens.')
+        if (!name || name.length > MAX_HEADER_NAME_LENGTH || !HEADER_NAME_PATTERN.test(name)) {
+            throw new TypeError(`Remote request header names must be valid HTTP tokens up to ${MAX_HEADER_NAME_LENGTH} characters.`)
+        }
         if (typeof value !== 'string') throw new TypeError(`Remote request header "${name}" must have a string value.`)
         if (/[\0\r\n]/.test(value)) throw new TypeError(`Remote request header "${name}" cannot contain control characters.`)
         if (value.length > MAX_HEADER_VALUE_LENGTH) throw new RangeError(`Remote request header "${name}" is too long.`)

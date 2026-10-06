@@ -34,6 +34,9 @@ describe('remote DICOM request options', () => {
 
     it('rejects malformed, duplicated, and browser-controlled headers', () => {
         assert.throws(() => createDwvUrlRequestOptions({
+            headers: [{ name: 42 as unknown as string, value: 'value' }]
+        }), /valid HTTP tokens/)
+        assert.throws(() => createDwvUrlRequestOptions({
             headers: [{ name: 'Bad Header', value: 'value' }]
         }), /valid HTTP tokens/)
         assert.throws(() => createDwvUrlRequestOptions({
@@ -43,8 +46,23 @@ describe('remote DICOM request options', () => {
             headers: [{ name: 'Cookie', value: 'session=secret' }]
         }), /controlled by the browser/)
         assert.throws(() => createDwvUrlRequestOptions({
+            headers: [{ name: 'Sec-Fetch-Site', value: 'same-origin' }]
+        }), /controlled by the browser/)
+        assert.throws(() => createDwvUrlRequestOptions({
             headers: [{ name: 'Authorization', value: 'one' }, { name: 'authorization', value: 'two' }]
         }), /duplicated/)
+    })
+
+    it('bounds header counts, names, and values', () => {
+        assert.throws(() => createDwvUrlRequestOptions({
+            headers: Array.from({ length: 65 }, (_, index) => ({ name: `X-Test-${index}`, value: 'value' }))
+        }), /more than 64/)
+        assert.throws(() => createDwvUrlRequestOptions({
+            headers: [{ name: `X-${'a'.repeat(256)}`, value: 'value' }]
+        }), /up to 256/)
+        assert.throws(() => createDwvUrlRequestOptions({
+            headers: [{ name: 'X-Large', value: 'a'.repeat(8193) }]
+        }), /too long/)
     })
 
     it('validates credential and batch controls', () => {
