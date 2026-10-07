@@ -153,6 +153,7 @@ let nextViewerId = 0
 <script setup lang="ts">
 import type { Annotation, App } from 'dwv'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { defaultValidationConcurrency, someWithConcurrency } from './async-pool'
 import {
     exportGroups,
     replaceAnnotationGroups,
@@ -251,7 +252,8 @@ const props = withDefaults(
         maxFileSizeBytes: 512 * 1024 * 1024,
         maxTotalFileSizeBytes: 2 * 1024 * 1024 * 1024,
         allowInsecureHttp: false,
-        allowArchives: false
+        allowArchives: false,
+        validationConcurrency: defaultValidationConcurrency
     }
 )
 
@@ -905,8 +907,13 @@ const load = async (
         if (normalisedSource.kind === 'files' && !props.allowArchives) {
             const startedAt = performanceNow()
             try {
-                const archiveResults = await Promise.all(normalisedSource.values.map(isZipFile))
-                if (archiveResults.some(Boolean)) throw new TypeError('Archive input is disabled. Pass allow-archives only for trusted ZIP files.')
+                const containsArchive = await someWithConcurrency(
+                    normalisedSource.values,
+                    props.validationConcurrency,
+                    isZipFile,
+                    () => isMounted && loadSessions.isActive(session)
+                )
+                if (containsArchive) throw new TypeError('Archive input is disabled. Pass allow-archives only for trusted ZIP files.')
             } finally { reportPerformance('source-validation', normalisedSource.values.length, startedAt) }
         }
 
