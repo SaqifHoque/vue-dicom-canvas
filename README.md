@@ -152,6 +152,14 @@ Restoring or clearing annotations starts a new undo/redo boundary. Edits made be
 
 Snapshots use this package's versioned JSON format, containing DWV DICOM SR elements and appearance information. They are limited to 10 MiB, 100 groups, 1,000 annotations, and 4,096 characters per annotation text. They are not Annotorious JSON. They can include patient/study metadata copied from the DICOM source, so store and protect them as study data. The package does not connect to a database or autosave.
 
+## Performance and practical limits
+
+The default source ceiling is 2,000 files or URLs. Local inputs are also limited to 512 MiB per file and 2 GiB in total. When archive input is disabled, the viewer reads file signatures through a bounded pool of eight operations; set `validationConcurrency` to a smaller positive integer for memory-constrained clients. A superseded load stops scheduling further signature reads.
+
+These values are input guards rather than a promise that every browser can render a dataset at the ceiling. Pixel dimensions, transfer syntax, frame count, device memory, and decoder cost all affect the practical limit. Exercise representative studies on the lowest-specification supported client and lower `maxSources`, file-size limits, or validation concurrency when needed.
+
+The `performance-measure` event reports `{ operation, durationMs, itemCount }` for source validation, annotation export, annotation restoration, and annotation-summary construction. Use it to collect application-specific timings without exposing patient or annotation content. Annotation exports reuse their serialized representation for prop-loop detection, and annotation-summary comparison avoids serializing unchanged lists.
+
 ## Component API
 
 ### Props
@@ -178,10 +186,11 @@ Snapshots use this package's versioned JSON format, containing DWV DICOM SR elem
 | `maxTotalFileSizeBytes` | `2147483648` | Maximum combined local file size. |
 | `allowInsecureHttp` | `false` | Allow non-localhost HTTP URLs. |
 | `allowArchives` | `false` | Allow trusted local ZIP input. |
+| `validationConcurrency` | `8` | Maximum simultaneous local-file signature reads. |
 
 ### Events, slots, and methods
 
-- **Events:** `load-start`, `load-progress`, `loaded`, `error`, `load-abort`, `load-timeout`, `worker-error`, `annotation-error`, `annotation-list-change`, `annotation-selection-change`, `window-level-change`, `window-level-error`, `viewport-change`, `viewport-error`, `update:annotations`, `update:annotationsVisible`, `annotations-change`, `history-change`, `navigation-change`, and `update:settingsOpen`.
+- **Events:** `load-start`, `load-progress`, `loaded`, `error`, `load-abort`, `load-timeout`, `performance-measure`, `worker-error`, `annotation-error`, `annotation-list-change`, `annotation-selection-change`, `window-level-change`, `window-level-error`, `viewport-change`, `viewport-error`, `update:annotations`, `update:annotationsVisible`, `annotations-change`, `history-change`, `navigation-change`, and `update:settingsOpen`.
 - **Slots:** `loading`, `empty`, and `error`. The error slot receives `{ error, retry }`. The default error display includes a Retry button.
 - **Methods:** `load(source?, remoteRequestOptions?)`, `retry()`, `reset()`, `fitToContainer()`, `getViewportState()`, `setViewportZoom(factor)`, `setViewportPan(point)`, `resetViewport()`, `setSlice(oneBasedIndex)`, `setFrame(oneBasedIndex)`, `getNavigationState()`, `getWindowLevelState()`, `setWindowLevel(value)`, `setWindowLevelPreset(name)`, `resetWindowLevel()`, `getAnnotations()`, `setAnnotations(snapshot)`, `getAnnotationSummaries()`, `selectAnnotation(uid)`, `getSelectedAnnotation()`, `updateSelectedAnnotation(edit)`, `deleteSelectedAnnotation()`, `getHistoryState()`, `getStatus()`, and `getApp()`.
 
