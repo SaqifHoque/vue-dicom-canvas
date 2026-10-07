@@ -155,9 +155,9 @@ import type { Annotation, App } from 'dwv'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { defaultValidationConcurrency, someWithConcurrency } from './async-pool'
 import {
-    exportGroups,
     replaceAnnotationGroups,
     restoreAnnotationSnapshot,
+    serializeGroups,
     shouldRestoreAnnotationSnapshot,
     type DicomAnnotations
 } from './annotation-utils'
@@ -174,6 +174,7 @@ import {
     type DicomAnnotationSelection
 } from './annotation-editing'
 import {
+    annotationSummariesEqual,
     createAnnotationSummaries,
     indexForAnnotation,
     type DicomAnnotationSummary
@@ -334,6 +335,7 @@ function redo() {
 }
 let restoring = false
 let lastEmitted = ''
+let lastEmittedSnapshot: DicomAnnotations | null = null
 let app: App | null = null
 const annotationEvents = ['annotationadd', 'annotationupdate', 'annotationremove']
 
@@ -350,7 +352,7 @@ function syncAnnotationSummaries(): void {
     })
     const next = createAnnotationSummaries(sources, dwv)
     reportPerformance('annotation-summary', next.length, startedAt)
-    if (JSON.stringify(next) === JSON.stringify(annotationSummaries.value)) return
+    if (annotationSummariesEqual(next, annotationSummaries.value)) return
     annotationSummaries.value = next
     emit('annotation-list-change', next.map(summary => ({ ...summary })))
 }
@@ -655,19 +657,26 @@ function onViewerKeydown(event: KeyboardEvent): void {
         reportViewportControlError(error)
     }
 }
-function getAnnotations(): DicomAnnotations {
-    if (!app || !dwv) return { version: 1, groups: [] }
+function serializeAnnotations(): ReturnType<typeof serializeGroups> {
+    if (!app || !dwv) {
+        const snapshot: DicomAnnotations = { version: 1, groups: [] }
+        return { snapshot, json: JSON.stringify(snapshot) }
+    }
     const groups = app.getDataIds().flatMap(id => {
         const group = app?.getData(id)?.annotationGroup
         return group ? [group] : []
     })
     const startedAt = performanceNow()
-    try { return exportGroups(groups, dwv) }
+    try { return serializeGroups(groups, dwv) }
     finally { reportPerformance('annotation-export', groups.length, startedAt) }
 }
+function getAnnotations(): DicomAnnotations {
+    return serializeAnnotations().snapshot
+}
 function emitAnnotationsChange(reason: AnnotationChangeReason, updateModel: boolean): void {
-    const snapshot = getAnnotations()
-    lastEmitted = JSON.stringify(snapshot)
+    const { snapshot, json } = serializeAnnotations()
+    lastEmitted = json
+    lastEmittedSnapshot = snapshot
     if (updateModel) emit('update:annotations', snapshot)
     emit('annotations-change', snapshot, { reason, history: historyState.value })
 }
@@ -1003,6 +1012,7 @@ watch(readOnly, value => {
     applyTool()
 })
 watch(() => props.annotations, value => {
+    if (value === lastEmittedSnapshot) return
     if (status.value === 'ready' && shouldRestoreAnnotationSnapshot(value, lastEmitted)) restoreProvidedAnnotations(true)
 }, { deep: true })
 

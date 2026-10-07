@@ -6,6 +6,7 @@ import {
     exportGroups,
     importGroups,
     restoreAnnotationSnapshot,
+    serializeGroups,
     validateAnnotationReferences,
     validateAnnotationSnapshot
 } from '../src/annotation-utils'
@@ -30,6 +31,13 @@ function createGroup() {
 }
 
 describe('annotation persistence', () => {
+    it('reuses the exported JSON representation for change tracking', () => {
+        const serialized = serializeGroups([createGroup()], dwv)
+
+        assert.deepEqual(serialized.snapshot, JSON.parse(serialized.json))
+        assert.notEqual(serialized.snapshot.groups[0]?.dicom, undefined)
+    })
+
     it('round trips geometry, image/frame references, color and labels through JSON', () => {
         const group = createGroup()
         const mark = group.getList()[0]!

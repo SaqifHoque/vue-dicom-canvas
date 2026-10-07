@@ -88,8 +88,18 @@ export function validateAnnotationSnapshot(
 }
 
 export function exportGroups(groups: AnnotationGroup[], dwv: DwvModule): DicomAnnotations {
+    return serializeGroups(groups, dwv).snapshot
+}
+
+export interface SerializedDicomAnnotations {
+    snapshot: DicomAnnotations
+    json: string
+}
+
+/** Export one detached snapshot and retain its existing JSON representation for change tracking. */
+export function serializeGroups(groups: AnnotationGroup[], dwv: DwvModule): SerializedDicomAnnotations {
     const factory = new dwv.AnnotationGroupFactory()
-    return JSON.parse(JSON.stringify({
+    const json = JSON.stringify({
         version: 1,
         groups: groups.filter(group => group.getLength() > 0).map(group => ({
             dicom: factory.toDicom(group),
@@ -98,7 +108,8 @@ export function exportGroups(groups: AnnotationGroup[], dwv: DwvModule): DicomAn
                 label: mark.labelPosition ? [mark.labelPosition.getX(), mark.labelPosition.getY()] : undefined
             }))
         }))
-    }))
+    })
+    return { snapshot: JSON.parse(json), json }
 }
 
 export function importGroups(snapshot: DicomAnnotations, dwv: DwvModule): AnnotationGroup[] {
