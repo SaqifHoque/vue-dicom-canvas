@@ -30,4 +30,6 @@ export interface DicomViewerProps {
     maxTotalFileSizeBytes?: number
     allowInsecureHttp?: boolean
     allowArchives?: boolean
+    /** Maximum simultaneous local-file signature reads during archive validation. */
+    validationConcurrency?: number
 }

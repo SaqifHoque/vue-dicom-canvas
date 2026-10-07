@@ -63,6 +63,22 @@ export function createAnnotationSummaries(
     )
 }
 
+export function annotationSummariesEqual(
+    left: readonly DicomAnnotationSummary[],
+    right: readonly DicomAnnotationSummary[]
+): boolean {
+    return left.length === right.length && left.every((item, index) => {
+        const other = right[index]
+        return item.uid === other?.uid &&
+            item.dataId === other.dataId &&
+            item.label === other.label &&
+            item.colour === other.colour &&
+            item.shape === other.shape &&
+            item.imageUid === other.imageUid &&
+            item.frameNumber === other.frameNumber
+    })
+}
+
 /** Build a complete index that focuses an annotation while preserving unrelated dimensions. */
 export function indexForAnnotation(
     currentIndex: readonly number[],

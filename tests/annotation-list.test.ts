@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import * as dwv from 'dwv'
-import { createAnnotationSummaries, createAnnotationSummary, indexForAnnotation } from '../src/annotation-list'
+import {
+    annotationSummariesEqual,
+    createAnnotationSummaries,
+    createAnnotationSummary,
+    indexForAnnotation
+} from '../src/annotation-list'
 import { createNavigationModel } from '../src/navigation'
 
 describe('annotation list', () => {
@@ -57,5 +62,15 @@ describe('annotation list', () => {
 
         group.remove(annotation.trackingUid)
         assert.deepEqual(summaries(), [])
+    })
+
+    it('compares summary fields without serializing the list', () => {
+        const summary = {
+            uid: 'mark-1', dataId: 'drawings', label: 'Area', colour: '#abcdef',
+            shape: 'ROI' as const, imageUid: '2.25.3', frameNumber: 2
+        }
+        assert.equal(annotationSummariesEqual([summary], [{ ...summary }]), true)
+        assert.equal(annotationSummariesEqual([summary], [{ ...summary, label: 'Changed' }]), false)
+        assert.equal(annotationSummariesEqual([summary], []), false)
     })
 })

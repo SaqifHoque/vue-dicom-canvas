@@ -153,10 +153,11 @@ let nextViewerId = 0
 <script setup lang="ts">
 import type { Annotation, App } from 'dwv'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { defaultValidationConcurrency, someWithConcurrency } from './async-pool'
 import {
-    exportGroups,
     replaceAnnotationGroups,
     restoreAnnotationSnapshot,
+    serializeGroups,
     shouldRestoreAnnotationSnapshot,
     type DicomAnnotations
 } from './annotation-utils'
@@ -173,6 +174,7 @@ import {
     type DicomAnnotationSelection
 } from './annotation-editing'
 import {
+    annotationSummariesEqual,
     createAnnotationSummaries,
     indexForAnnotation,
     type DicomAnnotationSummary
@@ -200,6 +202,11 @@ import {
     type DicomNavigationState
 } from './navigation'
 import { normaliseDicomSource } from './source-utils'
+import {
+    createPerformanceMeasure,
+    performanceNow,
+    type DicomPerformanceOperation
+} from './performance'
 import {
     type DicomRemoteRequestOptions,
     RemoteRequestOptionsStore
@@ -246,7 +253,8 @@ const props = withDefaults(
         maxFileSizeBytes: 512 * 1024 * 1024,
         maxTotalFileSizeBytes: 2 * 1024 * 1024 * 1024,
         allowInsecureHttp: false,
-        allowArchives: false
+        allowArchives: false,
+        validationConcurrency: defaultValidationConcurrency
     }
 )
 
@@ -264,6 +272,7 @@ const emit = defineEmits<{
     'viewport-change': [viewport: DicomViewportState | null]
     'viewport-error': [error: Error]
     'worker-error': [error: DicomWorkerLoadError]
+    'performance-measure': [measure: import('./performance').DicomPerformanceMeasure]
     'update:settingsOpen': [open: boolean]
     'load-start': [event: unknown]
     'load-progress': [event: unknown]
@@ -326,17 +335,24 @@ function redo() {
 }
 let restoring = false
 let lastEmitted = ''
+let lastEmittedSnapshot: DicomAnnotations | null = null
 let app: App | null = null
 const annotationEvents = ['annotationadd', 'annotationupdate', 'annotationremove']
 
+function reportPerformance(operation: DicomPerformanceOperation, itemCount: number, startedAt: number): void {
+    emit('performance-measure', createPerformanceMeasure(operation, itemCount, startedAt, performanceNow()))
+}
+
 function syncAnnotationSummaries(): void {
     if (!app || !dwv) return
+    const startedAt = performanceNow()
     const sources = app.getDataIds().flatMap(dataId => {
         const annotations = app?.getData(dataId)?.annotationGroup?.getList()
         return annotations ? [{ dataId, annotations }] : []
     })
     const next = createAnnotationSummaries(sources, dwv)
-    if (JSON.stringify(next) === JSON.stringify(annotationSummaries.value)) return
+    reportPerformance('annotation-summary', next.length, startedAt)
+    if (annotationSummariesEqual(next, annotationSummaries.value)) return
     annotationSummaries.value = next
     emit('annotation-list-change', next.map(summary => ({ ...summary })))
 }
@@ -641,16 +657,26 @@ function onViewerKeydown(event: KeyboardEvent): void {
         reportViewportControlError(error)
     }
 }
-function getAnnotations(): DicomAnnotations {
-    if (!app || !dwv) return { version: 1, groups: [] }
-    return exportGroups(app.getDataIds().flatMap(id => {
+function serializeAnnotations(): ReturnType<typeof serializeGroups> {
+    if (!app || !dwv) {
+        const snapshot: DicomAnnotations = { version: 1, groups: [] }
+        return { snapshot, json: JSON.stringify(snapshot) }
+    }
+    const groups = app.getDataIds().flatMap(id => {
         const group = app?.getData(id)?.annotationGroup
         return group ? [group] : []
-    }), dwv)
+    })
+    const startedAt = performanceNow()
+    try { return serializeGroups(groups, dwv) }
+    finally { reportPerformance('annotation-export', groups.length, startedAt) }
+}
+function getAnnotations(): DicomAnnotations {
+    return serializeAnnotations().snapshot
 }
 function emitAnnotationsChange(reason: AnnotationChangeReason, updateModel: boolean): void {
-    const snapshot = getAnnotations()
-    lastEmitted = JSON.stringify(snapshot)
+    const { snapshot, json } = serializeAnnotations()
+    lastEmitted = json
+    lastEmittedSnapshot = snapshot
     if (updateModel) emit('update:annotations', snapshot)
     emit('annotations-change', snapshot, { reason, history: historyState.value })
 }
@@ -689,7 +715,9 @@ function replaceAnnotations(snapshot: DicomAnnotations | null): void {
         const frames = Number(meta.NumberOfFrames ?? 1)
         if (Number.isInteger(frames) && frames > frameCount) frameCount = frames
     }
-    restoreAnnotationSnapshot(snapshot ?? { version: 1, groups: [] }, currentDwv, {
+    const requestedSnapshot = snapshot ?? { version: 1 as const, groups: [] }
+    const startedAt = performanceNow()
+    try { restoreAnnotationSnapshot(requestedSnapshot, currentDwv, {
         studyInstanceUIDs,
         includesImageUid: uid => view.includesImageUid(uid),
         frameCount
@@ -717,7 +745,7 @@ function replaceAnnotations(snapshot: DicomAnnotations | null): void {
             emit('history-change', historyState.value)
             applyTool()
         } finally { restoring = false }
-    })
+    }) } finally { reportPerformance('annotation-restore', requestedSnapshot.groups.length, startedAt) }
 }
 function setAnnotations(snapshot: DicomAnnotations | null): void {
     assertAnnotationWritable(readOnly.value)
@@ -886,8 +914,16 @@ const load = async (
             : undefined
 
         if (normalisedSource.kind === 'files' && !props.allowArchives) {
-            const archiveResults = await Promise.all(normalisedSource.values.map(isZipFile))
-            if (archiveResults.some(Boolean)) throw new TypeError('Archive input is disabled. Pass allow-archives only for trusted ZIP files.')
+            const startedAt = performanceNow()
+            try {
+                const containsArchive = await someWithConcurrency(
+                    normalisedSource.values,
+                    props.validationConcurrency,
+                    isZipFile,
+                    () => isMounted && loadSessions.isActive(session)
+                )
+                if (containsArchive) throw new TypeError('Archive input is disabled. Pass allow-archives only for trusted ZIP files.')
+            } finally { reportPerformance('source-validation', normalisedSource.values.length, startedAt) }
         }
 
         if (!isMounted || !loadSessions.isActive(session) || !app) return session.result
@@ -976,6 +1012,7 @@ watch(readOnly, value => {
     applyTool()
 })
 watch(() => props.annotations, value => {
+    if (value === lastEmittedSnapshot) return
     if (status.value === 'ready' && shouldRestoreAnnotationSnapshot(value, lastEmitted)) restoreProvidedAnnotations(true)
 }, { deep: true })
 

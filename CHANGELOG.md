@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Performance and practical limits
+
+- Emit typed timings for representative source-validation and annotation paths.
+- Bound concurrent local-file signature reads and stop scheduling them when a load is superseded.
+- Reuse annotation serialization, compare summaries by field, and document practical dataset limits.
+
 ## Unreleased — Authenticated remote loading
 
 - Add typed headers, cookie credentials, and request batching for remote DICOM URL loads.
