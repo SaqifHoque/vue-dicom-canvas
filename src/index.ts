@@ -1,5 +1,7 @@
 export { default as DicomViewer } from './DicomViewer.vue'
 export { getFileExtension, isDicomFile, isZipFile } from './file-utils'
+export { createPerformanceMeasure, performanceNow } from './performance'
+export type { DicomPerformanceMeasure, DicomPerformanceOperation, PerformanceClock } from './performance'
 export { normaliseDicomSource } from './source-utils'
 export type { DicomSourcePolicy, NormalisedDicomSource } from './source-utils'
 export type { DicomSource, DicomViewerProps, DicomViewerStatus } from './types'
