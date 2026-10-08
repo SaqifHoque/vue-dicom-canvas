@@ -146,13 +146,9 @@
     </div>
 </template>
 
-<script lang="ts">
-let nextViewerId = 0
-</script>
-
 <script setup lang="ts">
 import type { Annotation, App } from 'dwv'
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 import { defaultValidationConcurrency, someWithConcurrency } from './async-pool'
 import {
     replaceAnnotationGroups,
@@ -282,7 +278,8 @@ const emit = defineEmits<{
     error: [error: Error, event?: unknown]
 }>()
 
-const containerId = props.viewerId || `dicom-viewer-${++nextViewerId}`
+const generatedViewerId = useId()
+const containerId = props.viewerId || `dicom-viewer-${generatedViewerId}`
 const container = ref<HTMLElement | null>(null)
 const status = ref<DicomViewerStatus>('idle')
 const error = ref<Error | null>(null)
@@ -849,6 +846,7 @@ const clearViewer = (): void => {
     historyState.value = history.reset()
     emit('history-change', historyState.value)
     lastEmitted = ''
+    lastEmittedSnapshot = null
     if (annotationSummaries.value.length) {
         annotationSummaries.value = []
         emit('annotation-list-change', [])
@@ -987,7 +985,7 @@ onMounted(async () => {
         await initialise()
         if (isMounted) await load()
     } catch (value) {
-        reportError(toError(value), value)
+        if (isMounted) reportError(toError(value), value)
     }
 })
 
