@@ -19,6 +19,7 @@ export interface DicomViewerProps {
     /** Headers, cookie credentials, and batching applied to subsequent URL loads. */
     remoteRequestOptions?: import('./remote-request').DicomRemoteRequestOptions
     source?: DicomSource
+    /** Stable unique DOM ID; generated with Vue useId when omitted. Read at setup. */
     viewerId?: string
     width?: string | number
     height?: string | number

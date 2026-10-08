@@ -36,9 +36,10 @@
         "build": "vue-tsc --noEmit && vite build && vue-tsc -p tsconfig.build.json",
         "typecheck": "vue-tsc --noEmit",
         "test": "esbuild tests/*.test.ts --bundle --platform=node --format=esm --external:dwv --external:vue --outdir=.test-dist && node --test .test-dist/*.test.js",
+        "test:integration": "node --test tests/*.test.mjs",
         "audit": "npm audit --audit-level=high",
         "verify:workers": "node scripts/verify-workers.mjs",
-        "check": "npm run test && npm run build && npm run verify:workers",
+        "check": "npm run test && npm run build && npm run test:integration && npm run verify:workers",
         "prepack": "npm run check",
         "dev": "npm run build && vite --config examples/basic/vite.config.ts",
         "build:example": "npm run build && vue-tsc --noEmit -p examples/basic/tsconfig.json && vite build --config examples/basic/vite.config.ts",
@@ -46,7 +47,7 @@
     },
     "peerDependencies": {
         "dwv": ">=0.36.4 <0.37.0",
-        "vue": ">=3.4.0 <4.0.0"
+        "vue": ">=3.5.0 <4.0.0"
     },
     "devDependencies": {
         "@types/node": "^22.10.0",

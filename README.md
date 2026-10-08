@@ -101,7 +101,7 @@ Cross-origin servers must allow the application origin, requested methods, and c
 
 ## Worker assets
 
-The package targets DWV `>=0.36.4 <0.37.0` and Vue `>=3.4.0 <4.0.0`. Copy the packaged worker files to your application's public assets during setup or build. For a Vite consumer:
+The package targets DWV `>=0.36.4 <0.37.0` and Vue `>=3.5.0 <4.0.0`. Copy the packaged worker files to your application's public assets during setup or build. For a Vite consumer:
 
 ```sh
 mkdir -p public/assets/workers
@@ -202,12 +202,21 @@ The angle tool uses DWV's `Protractor` factory and completes after three points.
 
 `reset()` aborts an active request and emits `load-abort` with the `reset` reason. A DWV-originated abort emits the same event with the `dwv` reason. Timeouts set the error state, emit both `load-timeout` and `error`, and can be retried with the default button, the error slot's `retry` callback, or the exposed `retry()` method. Component teardown settles an outstanding `load()` result without emitting after unmount.
 
-`getApp()` exposes DWV for advanced integrations. DWV requires browser APIs; use a client-only viewer in SSR applications.
+`getApp()` exposes DWV for advanced integrations. It returns `null` before initialization and after unmount.
+
+## SSR and multiple viewers
+
+The package can be imported and the viewer's initial shell rendered on the server. DWV is imported only after the viewer mounts in the browser; concurrent mounts share that import, and a later mount can retry a failed import. Keep the initial props consistent between server rendering and hydration. Image loading and canvas rendering require browser APIs.
+
+Generated viewer IDs use Vue 3.5's `useId()` so separate SSR requests and hydration do not depend on a process-global counter. Within one Vue app, every viewer gets its own canvas and control IDs. For multiple Vue roots on the same document, configure a distinct `app.config.idPrefix` for each root, using the same prefix on server and client, or provide unique, stable `viewerId` values.
+
+Each viewer owns its DWV app, source, annotations, history, controls, request credentials, and load sessions. Resetting or unmounting one viewer does not reset the others. Unmount settles pending loads, removes listeners, disconnects the resize observer, and releases its worker resolver reference; late initialization results are ignored. Worker deployment is shared at browser scope, so mounted viewers must use the same nonempty `workerBasePath` when configuring packaged workers.
 
 ## Development and checks
 
 ```sh
 npm run check           # Tests, type checking, library build, worker verification
+npm run test:integration # Built-package SSR and multiple-viewer tests (run build first)
 npm run build:example   # Type-check and build the demo
 npm run audit           # Check the live npm advisory database
 npm pack --dry-run      # Inspect the package contents

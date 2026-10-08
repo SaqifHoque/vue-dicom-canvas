@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — SSR and multiple viewers
+
+- Use hydration-stable viewer IDs and raise the supported Vue minimum to 3.5.
+- Share lazy DWV imports while allowing retry after import failure.
+- Ignore initialization after unmount and release shared worker resources reliably during teardown.
+- Test built ESM/CJS SSR imports, repeated server requests, and multiple-instance state and cleanup.
+
 ## Unreleased — Performance and practical limits
 
 - Emit typed timings for representative source-validation and annotation paths.

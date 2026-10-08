@@ -146,13 +146,9 @@
     </div>
 </template>
 
-<script lang="ts">
-let nextViewerId = 0
-</script>
-
 <script setup lang="ts">
 import type { Annotation, App } from 'dwv'
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 import { defaultValidationConcurrency, someWithConcurrency } from './async-pool'
 import {
     replaceAnnotationGroups,
@@ -282,7 +278,8 @@ const emit = defineEmits<{
     error: [error: Error, event?: unknown]
 }>()
 
-const containerId = props.viewerId || `dicom-viewer-${++nextViewerId}`
+const generatedViewerId = useId()
+const containerId = props.viewerId || `dicom-viewer-${generatedViewerId}`
 const container = ref<HTMLElement | null>(null)
 const status = ref<DicomViewerStatus>('idle')
 const error = ref<Error | null>(null)
@@ -849,6 +846,7 @@ const clearViewer = (): void => {
     historyState.value = history.reset()
     emit('history-change', historyState.value)
     lastEmitted = ''
+    lastEmittedSnapshot = null
     if (annotationSummaries.value.length) {
         annotationSummaries.value = []
         emit('annotation-list-change', [])
@@ -947,11 +945,12 @@ const initialise = async (): Promise<void> => {
         releaseWorkerResolver = installDicomWorkerResolver({
             workerBasePath: props.workerBasePath,
             documentUrl: document.baseURI
-        }, workerError => emit('worker-error', workerError))
+        }, workerError => { if (isMounted) emit('worker-error', workerError) })
     }
-    dwv = await loadDwv()
-    const { App, AppOptions, ViewConfig, ToolConfig } = dwv
+    const loadedDwv = await loadDwv()
     if (!isMounted) return
+    dwv = loadedDwv
+    const { App, AppOptions, ViewConfig, ToolConfig } = loadedDwv
 
     app = new App()
     const options = new AppOptions({ '*': [new ViewConfig(containerId)] })
@@ -987,7 +986,7 @@ onMounted(async () => {
         await initialise()
         if (isMounted) await load()
     } catch (value) {
-        reportError(toError(value), value)
+        if (isMounted) reportError(toError(value), value)
     }
 })
 
@@ -1022,7 +1021,7 @@ onBeforeUnmount(() => {
     touchPointerState.value = touchPointers.reset()
     loadSessions.cancel({ status: 'aborted', reason: 'unmount' })
     resizeObserver?.disconnect()
-    if (app) {
+    try { if (app) {
         app.removeEventListener('loadstart', onLoadStart)
         app.removeEventListener('loadprogress', onLoadProgress)
         app.removeEventListener('load', onLoadEnd)
@@ -1038,10 +1037,12 @@ onBeforeUnmount(() => {
         app.removeEventListener('timeout', onLoadTimeout)
         app.abortAllLoads()
         app.reset()
+    } } finally {
+        app = null
+        dwv = null
+        releaseWorkerResolver?.()
+        releaseWorkerResolver = null
     }
-    app = null
-    releaseWorkerResolver?.()
-    releaseWorkerResolver = null
 })
 
 defineExpose({
