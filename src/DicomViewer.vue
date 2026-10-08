@@ -945,11 +945,12 @@ const initialise = async (): Promise<void> => {
         releaseWorkerResolver = installDicomWorkerResolver({
             workerBasePath: props.workerBasePath,
             documentUrl: document.baseURI
-        }, workerError => emit('worker-error', workerError))
+        }, workerError => { if (isMounted) emit('worker-error', workerError) })
     }
-    dwv = await loadDwv()
-    const { App, AppOptions, ViewConfig, ToolConfig } = dwv
+    const loadedDwv = await loadDwv()
     if (!isMounted) return
+    dwv = loadedDwv
+    const { App, AppOptions, ViewConfig, ToolConfig } = loadedDwv
 
     app = new App()
     const options = new AppOptions({ '*': [new ViewConfig(containerId)] })
@@ -1020,7 +1021,7 @@ onBeforeUnmount(() => {
     touchPointerState.value = touchPointers.reset()
     loadSessions.cancel({ status: 'aborted', reason: 'unmount' })
     resizeObserver?.disconnect()
-    if (app) {
+    try { if (app) {
         app.removeEventListener('loadstart', onLoadStart)
         app.removeEventListener('loadprogress', onLoadProgress)
         app.removeEventListener('load', onLoadEnd)
@@ -1036,10 +1037,12 @@ onBeforeUnmount(() => {
         app.removeEventListener('timeout', onLoadTimeout)
         app.abortAllLoads()
         app.reset()
+    } } finally {
+        app = null
+        dwv = null
+        releaseWorkerResolver?.()
+        releaseWorkerResolver = null
     }
-    app = null
-    releaseWorkerResolver?.()
-    releaseWorkerResolver = null
 })
 
 defineExpose({
