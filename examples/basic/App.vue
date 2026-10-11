@@ -46,7 +46,7 @@ function restore() {
             <button @click="showSample">Load sample</button>
         </div>
         <DicomViewer ref="viewer" v-model:annotations="annotations" :source="source" height="min(75vh, 720px)"
-            worker-base-path="./assets/workers/" @annotation-error="message = $event.message"
+            worker-base-path="./assets/workers/" show-annotation-file-controls @annotation-error="message = $event.message"
             @worker-error="message = $event.message" />
         <details>
             <summary>Try annotation save and restore</summary>
