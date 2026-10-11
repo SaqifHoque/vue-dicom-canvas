@@ -64,6 +64,14 @@
                 <label>Color <input v-model="colour" type="color" :disabled="readOnly" @input="applyTool" /></label>
                 <label><input v-model="annotationsVisible" type="checkbox" /> Show marks</label>
                 <button :disabled="readOnly || !historyState.canUndo" @click="undo">Undo</button><button :disabled="readOnly || !historyState.canRedo" @click="redo">Redo</button>
+                <div v-if="showAnnotationFileControls" class="dicom-viewer__annotation-files">
+                    <strong>Annotation files</strong>
+                    <label>Import JSON
+                        <input type="file" accept=".json,application/json" :disabled="readOnly || annotationFileBusy" @change="importAnnotationsFromFile" />
+                    </label>
+                    <button type="button" @click="downloadAnnotations">Download JSON</button>
+                    <small role="status" aria-live="polite">{{ annotationFileMessage }}</small>
+                </div>
                 <div v-if="viewport" class="dicom-viewer__viewport-controls">
                     <strong>View</strong>
                     <button type="button" :disabled="viewport.zoom <= viewportZoomBounds.min" aria-label="Zoom out" @click="adjustViewportZoom(1 / 1.25)">−</button>
@@ -149,6 +157,7 @@
 <script setup lang="ts">
 import type { Annotation, App } from 'dwv'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
+import { createAnnotationFile, restoreAnnotationFile } from './annotation-file'
 import { defaultValidationConcurrency, someWithConcurrency } from './async-pool'
 import {
     replaceAnnotationGroups,
@@ -238,6 +247,7 @@ const props = withDefaults(
         drawingShapes: () => defaultDrawingShapes,
         workerBasePath: '',
         showControls: true,
+        showAnnotationFileControls: false,
         settingsOpen: true,
         viewerId: '',
         width: '100%',
@@ -310,6 +320,9 @@ const touchPointers = new TouchPointerTracker()
 const touchPointerState = ref(touchPointers.getState())
 const selectedAnnotation = ref<DicomAnnotationSelection | null>(null)
 const annotationSummaries = ref<DicomAnnotationSummary[]>([])
+const annotationFileBusy = ref(false)
+const annotationFileMessage = ref('')
+let annotationFileGeneration = 0
 const history = new AnnotationHistoryController()
 const historyState = ref(history.getState())
 function syncHistory() {
@@ -749,6 +762,53 @@ function setAnnotations(snapshot: DicomAnnotations | null): void {
     replaceAnnotations(snapshot)
     emitAnnotationsChange(snapshot === null ? 'clear' : 'replace', true)
 }
+
+async function importAnnotationsFromFile(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement
+    const file = input.files?.[0]
+    input.value = ''
+    if (!file || annotationFileBusy.value) return
+    const generation = annotationFileGeneration
+    const isCurrent = () => isMounted && generation === annotationFileGeneration && status.value === 'ready'
+    annotationFileBusy.value = true
+    annotationFileMessage.value = 'Reading annotation file…'
+    try {
+        assertAnnotationWritable(readOnly.value)
+        const restored = await restoreAnnotationFile(file, isCurrent, setAnnotations)
+        if (restored) annotationFileMessage.value = 'Annotations imported.'
+    } catch (value) {
+        if (isCurrent()) {
+            const fileError = toError(value)
+            annotationFileMessage.value = fileError.message
+            emit('annotation-error', fileError)
+        }
+    } finally {
+        annotationFileBusy.value = false
+    }
+}
+
+function downloadAnnotations(): void {
+    let url: string | undefined
+    try {
+        url = URL.createObjectURL(createAnnotationFile(getAnnotations()))
+        const link = document.createElement('a')
+        link.href = url
+        link.download = 'annotations.json'
+        document.body.appendChild(link)
+        try { link.click() }
+        finally { link.remove() }
+        annotationFileMessage.value = 'Annotation download started.'
+    } catch (value) {
+        const fileError = toError(value)
+        annotationFileMessage.value = fileError.message
+        emit('annotation-error', fileError)
+    } finally {
+        if (url) {
+            const objectUrl = url
+            setTimeout(() => URL.revokeObjectURL(objectUrl), 0)
+        }
+    }
+}
 function restoreProvidedAnnotations(announce = false) {
     try {
         replaceAnnotations(props.annotations)
@@ -839,6 +899,8 @@ const onLoadTimeout = (event: unknown) => {
 }
 
 const clearViewer = (): void => {
+    annotationFileGeneration += 1
+    annotationFileMessage.value = ''
     if (app) {
         app.abortAllLoads()
         app.reset()
@@ -1017,6 +1079,7 @@ watch(() => props.annotations, value => {
 
 onBeforeUnmount(() => {
     isMounted = false
+    annotationFileGeneration += 1
     remoteRequestOptionsStore.clear()
     touchPointerState.value = touchPointers.reset()
     loadSessions.cancel({ status: 'aborted', reason: 'unmount' })
@@ -1138,6 +1201,9 @@ defineExpose({
 .dicom-viewer__viewport-controls { display: flex; align-items: center; gap: 8px; }
 .dicom-viewer__viewport-controls output { min-width: 3.5em; text-align: center; font-variant-numeric: tabular-nums; }
 .dicom-viewer__window-level { display: flex; width: 100%; align-items: center; gap: 8px; }
+.dicom-viewer__annotation-files { display: flex; width: 100%; flex-wrap: wrap; align-items: center; gap: 8px; }
+.dicom-viewer__annotation-files small { flex-basis: 100%; }
+.dicom-viewer__annotation-files input { max-width: 100%; }
 .dicom-viewer__window-level input[type=number] { width: 7em; }
 .dicom-viewer__annotation-editor { display: flex; width: 100%; align-items: center; gap: 8px; }
 .dicom-viewer__annotation-editor label { flex: 0 1 auto; }

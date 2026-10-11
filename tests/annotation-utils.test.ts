@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { reactive } from 'vue'
 import * as dwv from 'dwv'
+import { createAnnotationFile, readAnnotationFile } from '../src/annotation-file'
 import {
     exportGroups,
     importGroups,
@@ -31,6 +32,19 @@ function createGroup() {
 }
 
 describe('annotation persistence', () => {
+    it('round trips DWV geometry and appearance through an annotation JSON file', async () => {
+        const group = createGroup()
+        const snapshot = await readAnnotationFile(createAnnotationFile(exportGroups([group], dwv)))
+        const mark = importGroups(snapshot, dwv)[0]!.getList()[0]!
+        assert.equal(mark.trackingUid, group.getList()[0]!.trackingUid)
+        assert.equal(mark.referencedSopInstanceUID, '2.25.3')
+        assert.equal(mark.referencedFrameNumber, 4)
+        assert.equal(mark.colour, '#12ab34')
+        assert.equal(mark.textExpr, 'Saved region')
+        assert.ok(mark.mathShape instanceof dwv.Rectangle)
+        assert.equal(mark.mathShape.getEnd().getY(), 70)
+    })
+
     it('reuses the exported JSON representation for change tracking', () => {
         const serialized = serializeGroups([createGroup()], dwv)
 
