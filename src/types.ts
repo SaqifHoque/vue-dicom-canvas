@@ -9,6 +9,8 @@ export interface DicomViewerProps {
     /** Prevent viewer-originated annotation changes while allowing navigation and prop restores. */
     readOnly?: boolean
     showControls?: boolean
+    /** Show optional annotation JSON import and download actions. */
+    showAnnotationFileControls?: boolean
     settingsOpen?: boolean
     /** DWV tools configured at mount; keep this object stable. */
     tools?: Record<string, import('dwv').ToolConfig>

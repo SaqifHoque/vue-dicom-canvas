@@ -8,6 +8,12 @@ export type { DicomSourcePolicy, NormalisedDicomSource } from './source-utils'
 export type { DicomSource, DicomViewerProps, DicomViewerStatus } from './types'
 
 export type { DicomAnnotations } from './annotation-utils'
+export {
+    createAnnotationFile,
+    decodeAnnotationSnapshot,
+    encodeAnnotationSnapshot,
+    readAnnotationFile
+} from './annotation-file'
 export type { DicomAnnotationEdit, DicomAnnotationSelection } from './annotation-editing'
 export type { DicomAnnotationSummary } from './annotation-list'
 export { defaultDrawingShapes, drawingShapeDefinitions } from './drawing-shapes'

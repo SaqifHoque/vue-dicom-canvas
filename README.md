@@ -152,6 +152,25 @@ Restoring or clearing annotations starts a new undo/redo boundary. Edits made be
 
 Snapshots use this package's versioned JSON format, containing DWV DICOM SR elements and appearance information. They are limited to 10 MiB, 100 groups, 1,000 annotations, and 4,096 characters per annotation text. They are not Annotorious JSON. They can include patient/study metadata copied from the DICOM source, so store and protect them as study data. The package does not connect to a database or autosave.
 
+## Annotation JSON files
+
+Enable `show-annotation-file-controls` to add **Import JSON** and **Download JSON** to the ready viewer's settings panel:
+
+```vue
+<DicomViewer
+    v-model:annotations="annotations"
+    :source="source"
+    show-annotation-file-controls
+    @annotation-error="reportAnnotationError"
+/>
+```
+
+Downloads use the filename `annotations.json` and the same versioned snapshot used for database persistence. Import replaces the current marks only after snapshot and loaded-image reference validation succeeds, creates a new history boundary, and emits the normal `update:annotations` and `annotations-change` events with reason `replace`. An empty snapshot clears the marks. Failed imports preserve current marks and show feedback in the panel while emitting `annotation-error`. Import is disabled in read-only mode; download remains available. Reset, source changes, and unmount discard pending file reads before they can apply to another study.
+
+Files are limited to 10 MiB before reading and must contain valid UTF-8 JSON snapshots; MIME types and extensions are picker hints rather than validation. Files include the same patient/study metadata as database snapshots. Use your application's storage and access policy for either workflow.
+
+For custom interfaces, `createAnnotationFile(snapshot)` returns an `application/json` Blob, `readAnnotationFile(file)` asynchronously parses and validates a Blob, and `encodeAnnotationSnapshot(snapshot)` / `decodeAnnotationSnapshot(json)` handle strings. These helpers validate the snapshot envelope; apply the result through `setAnnotations()` after the matching image loads to validate study, image, frame, and shape references. The package continues to leave database persistence to your application.
+
 ## Performance and practical limits
 
 The default source ceiling is 2,000 files or URLs. Local inputs are also limited to 512 MiB per file and 2 GiB in total. When archive input is disabled, the viewer reads file signatures through a bounded pool of eight operations; set `validationConcurrency` to a smaller positive integer for memory-constrained clients. A superseded load stops scheduling further signature reads.
@@ -171,6 +190,7 @@ The `performance-measure` event reports `{ operation, durationMs, itemCount }` f
 | `annotationsVisible` | `true` | Show annotation layers; supports `v-model:annotations-visible`. |
 | `readOnly` | `false` | Block viewer-originated annotation changes during review. |
 | `showControls` | `true` | Display the built-in controls. |
+| `showAnnotationFileControls` | `false` | Show annotation JSON import and download actions in the settings panel. |
 | `settingsOpen` | `true` | Expand the settings panel; supports `v-model:settings-open`. |
 | `width` / `height` | `100%` / `400px` | CSS dimensions; numbers are pixels. |
 | `autoFit` | `true` | Fit after load and container resize. |

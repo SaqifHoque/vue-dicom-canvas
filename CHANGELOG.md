@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — Annotation JSON file transfer
+
+- Add bounded JSON encode, decode, Blob creation, and file-reading helpers.
+- Add optional import and download controls with validation feedback and read-only import protection.
+- Discard pending imports after reset, source replacement, or unmount and preserve marks on validation failure.
+- Cover Unicode, malformed files, resource limits, stale reads, and DWV geometry file round trips.
+
 ## Unreleased — SSR and multiple viewers
 
 - Use hydration-stable viewer IDs and raise the supported Vue minimum to 3.5.
