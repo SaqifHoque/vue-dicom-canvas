@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Browser regression coverage
+
+- Configure Playwright Chromium against the built demo and existing synthetic series.
+- Exercise drawing, history, snapshot persistence, navigation, settings visibility, and annotation JSON files.
+- Run browser checks in a dedicated CI job and retain failure reports, screenshots, and traces.
+
 ## Unreleased — Annotation JSON file transfer
 
 - Add bounded JSON encode, decode, Blob creation, and file-reading helpers.

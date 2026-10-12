@@ -237,12 +237,18 @@ Each viewer owns its DWV app, source, annotations, history, controls, request cr
 ```sh
 npm run check           # Tests, type checking, library build, worker verification
 npm run test:integration # Built-package SSR and multiple-viewer tests (run build first)
+npx playwright install chromium # One-time browser installation
+npm run test:browser     # Build and serve the demo, then run Chromium regressions
 npm run build:example   # Type-check and build the demo
 npm run audit           # Check the live npm advisory database
 npm pack --dry-run      # Inspect the package contents
 ```
 
 Vue and DWV remain peer dependencies. The imaging engine is loaded when the viewer mounts and remains the largest runtime dependency. Generated builds, dependencies, local settings, and real study files are excluded from Git; only the synthetic demo DICOM files are included.
+
+The browser suite uses the generated 12-slice series already shipped with the demo. It exercises actual canvas drawing, undo/redo, captured snapshot restoration, slice controls and keyboard navigation, settings visibility, JSON download/import, and malformed-file feedback. Playwright starts an isolated preview server on `127.0.0.1:4173` and waits for the viewer to be ready; stop other servers on that port before running it. Browser checks run separately from `npm run check` and packaging, so library checks do not require a browser download.
+
+CI installs Chromium and its system dependencies, runs the suite in a separate job, and retains HTML reports, screenshots, and traces for seven days on failure. Inspect a local failure with `npx playwright show-report` or `npx playwright show-trace test-results/<test-folder>/trace.zip`. The current suite targets Chromium; Firefox, WebKit, compressed study decoding, and visual comparisons are not yet covered.
 
 ## Constraints and licensing
 
