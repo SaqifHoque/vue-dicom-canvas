@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Release readiness
+
+- Verify the actual tarball and a fresh consumer's ESM/CJS imports, SSR shell, public declarations, CSS/worker exports, and production build.
+- Add migration guidance, a read-only review example, and browser coverage for review controls.
+- Record unresolved publication and licensing decisions and add fresh-consumer verification to CI.
+
 ## Unreleased — Browser regression coverage
 
 - Configure Playwright Chromium against the built demo and existing synthetic series.

@@ -29,10 +29,14 @@ Run these before every release:
 npm ci
 npm audit --audit-level=high
 npm run check
-npm pack --dry-run
-npm run verify:workers
+npm run build:example
+npm run verify:package
+npx playwright install chromium
+npm run test:browser
 ```
 
 CI repeats these checks for pushes and pull requests. Dependency upgrades are reviewed and prepared manually.
+
+The package check installs the actual tarball into a temporary consumer and verifies its exports, public types, SSR shell, and production build. Publication remains a separate maintainer decision; see [RELEASE.md](RELEASE.md) for the unresolved license, version, registry, and private-reporting requirements.
 
 The worker files in this release come from `dwv@0.36.4` under DWV's GPL-3.0 license. Their checksums are recorded in `workers/SHA256SUMS`; verification also compares them byte-for-byte with the installed DWV release so dependency updates cannot silently leave stale workers behind.

@@ -34,4 +34,6 @@ Keep all decisions explicit in release review. No publish credential, automated 
 
 ## Final review record
 
+Local preparation checks on 2026-10-13 passed: 93 unit tests, four built-package integration tests, four Chromium scenarios, library and demo builds, worker checksums, and a fresh consumer installation of a 64-file tarball. The live npm audit reported zero vulnerabilities. Vite still reports its existing large DWV chunk warning. These results cover the installed dependency versions on macOS; review the Linux CI jobs and rerun the checks for the final release commit.
+
 Record the reviewed commit, the CI results, dependency audit result, chosen version, license decision, registry access, and security contact before publication. Package snapshots may contain patient/study metadata; verify application data handling against the boundaries documented in SECURITY.md.
