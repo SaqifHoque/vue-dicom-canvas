@@ -1,6 +1,10 @@
 {
     "name": "@ys-reading/vue-dicom-canvas",
     "version": "2.0.0",
+    "publishConfig": {
+        "access": "public",
+        "registry": "https://registry.npmjs.org/"
+    },
     "description": "A Vue 3 DICOM viewer with built-in slice navigation, customizable drawing tools, collapsible controls, and annotation export and restore for database integration.",
     "type": "module",
     "sideEffects": [
