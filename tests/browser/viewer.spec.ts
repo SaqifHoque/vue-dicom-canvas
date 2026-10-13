@@ -92,3 +92,16 @@ test('downloads and imports annotation JSON and preserves marks on malformed inp
     await expect(page.locator('.dicom-viewer__annotation-files')).toContainText('must contain valid JSON')
     await expect(page.getByText('Marks (1)', { exact: true })).toBeVisible()
 })
+
+test('reviews marks read-only while keeping navigation and download available', async ({ page }) => {
+    await openViewer(page)
+    await drawRectangle(page)
+    await page.getByRole('checkbox', { name: 'Read-only review' }).check()
+    await expect(page.getByRole('button', { name: 'Undo', exact: true })).toBeDisabled()
+    await expect(page.getByLabel('Import JSON')).toBeDisabled()
+    await expect(page.getByRole('button', { name: 'Download JSON' })).toBeEnabled()
+    await expect(page.getByRole('combobox', { name: 'Tool', exact: true }).locator('option[value="Rectangle"]')).toHaveAttribute('disabled', '')
+    await page.getByRole('button', { name: 'Next slice', exact: true }).click()
+    await expect(page.getByRole('spinbutton', { name: /^Slice/ })).toHaveValue('2')
+    await expect(page.getByText('Marks (1)', { exact: true })).toBeVisible()
+})

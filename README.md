@@ -242,6 +242,7 @@ npm run test:browser     # Build and serve the demo, then run Chromium regressio
 npm run build:example   # Type-check and build the demo
 npm run audit           # Check the live npm advisory database
 npm pack --dry-run      # Inspect the package contents
+npm run verify:package  # Verify actual tarball and fresh consumer (run check first)
 ```
 
 Vue and DWV remain peer dependencies. The imaging engine is loaded when the viewer mounts and remains the largest runtime dependency. Generated builds, dependencies, local settings, and real study files are excluded from Git; only the synthetic demo DICOM files are included.
@@ -256,4 +257,4 @@ This is a viewer building block, not a certified medical device. Validate it for
 
 The wrapper is currently marked `UNLICENSED`; a project license must be selected before third-party reuse is offered. The bundled DWV workers originate from DWV 0.36.4 and carry GPL-3.0 licensing. Bundling them does not change the wrapper's declared license. Review both before redistribution.
 
-See [SECURITY.md](SECURITY.md) for input and deployment boundaries, [CHANGELOG.md](CHANGELOG.md) for implementation history, and [workers/NOTICE.md](workers/NOTICE.md) for worker provenance.
+See [MIGRATION.md](MIGRATION.md) for API migration and compatibility notes, and [RELEASE.md](RELEASE.md) for the release checks and publication decisions still requiring review. See [SECURITY.md](SECURITY.md) for input and deployment boundaries, [CHANGELOG.md](CHANGELOG.md) for implementation history, and [workers/NOTICE.md](workers/NOTICE.md) for worker provenance.

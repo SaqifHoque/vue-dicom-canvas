@@ -23,7 +23,7 @@ jobs:
             - run: npm audit --audit-level=high
             - run: npm run check
             - run: npm run build:example
-            - run: npm pack --dry-run
+            - run: npm run verify:package
 
     browser:
         runs-on: ubuntu-latest
