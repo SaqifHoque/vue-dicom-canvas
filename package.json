@@ -40,6 +40,7 @@
         "test:browser": "playwright test",
         "audit": "npm audit --audit-level=high",
         "verify:workers": "node scripts/verify-workers.mjs",
+        "verify:package": "node scripts/verify-package.mjs",
         "check": "npm run test && npm run build && npm run test:integration && npm run verify:workers",
         "prepack": "npm run check",
         "dev": "npm run build && vite --config examples/basic/vite.config.ts",
