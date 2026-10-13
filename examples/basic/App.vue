@@ -8,6 +8,7 @@ const viewer = ref<InstanceType<typeof DicomViewer> | null>(null)
 const annotations = ref<DicomAnnotations | null>(null)
 const saved = ref<string>('')
 const message = ref('')
+const readOnly = ref(false)
 function selectFiles(event: Event) {
     const input = event.target as HTMLInputElement
     const files = Array.from(input.files ?? [])
@@ -44,8 +45,10 @@ function restore() {
         <div class="demo-actions">
             <label>Open DICOM files <input type="file" multiple @change="selectFiles" /></label>
             <button @click="showSample">Load sample</button>
+            <label><input v-model="readOnly" type="checkbox" /> Read-only review</label>
         </div>
         <DicomViewer ref="viewer" v-model:annotations="annotations" :source="source" height="min(75vh, 720px)"
+            :read-only="readOnly"
             worker-base-path="./assets/workers/" show-annotation-file-controls @annotation-error="message = $event.message"
             @worker-error="message = $event.message" />
         <details>
@@ -53,8 +56,8 @@ function restore() {
             <p>These demo buttons simulate your application's database integration. The snapshot is held in memory and is lost on refresh.</p>
             <div class="demo-actions">
                 <button @click="save">Capture JSON</button>
-                <button @click="clearMarks">Clear marks</button>
-                <button :disabled="!saved" @click="restore">Restore saved marks</button>
+                <button :disabled="readOnly" @click="clearMarks">Clear marks</button>
+                <button :disabled="readOnly || !saved" @click="restore">Restore saved marks</button>
             </div>
             <textarea v-if="saved" :value="saved" readonly aria-label="Saved annotation JSON" />
         </details>

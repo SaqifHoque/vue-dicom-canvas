@@ -19,7 +19,7 @@ try {
     const paths = new Set(packed.files.map(file => file.path))
     const workers = ['jpeg2000', 'jpegbaseline', 'jpegloss', 'labeling', 'resampling', 'rle']
     for (const path of [
-        'package.json', 'README.md', 'CHANGELOG.md', 'SECURITY.md',
+        'package.json', 'README.md', 'CHANGELOG.md', 'SECURITY.md', 'MIGRATION.md', 'RELEASE.md',
         'dist/index.js', 'dist/index.cjs', 'dist/index.d.ts', 'dist/DicomViewer.vue.d.ts', 'dist/style.css',
         'workers/LICENSE.txt', 'workers/NOTICE.md', 'workers/SHA256SUMS',
         ...workers.map(worker => `workers/${worker}.worker.min.js`)

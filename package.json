@@ -12,6 +12,8 @@
         "scripts",
         "README.md",
         "SECURITY.md",
+        "MIGRATION.md",
+        "RELEASE.md",
         "CHANGELOG.md",
         "examples/basic/*.vue",
         "examples/basic/*.ts",
