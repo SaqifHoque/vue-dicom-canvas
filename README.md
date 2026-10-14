@@ -1,10 +1,25 @@
 # Vue DICOM Canvas
 
-A Vue 3 DICOM viewer with built-in slice navigation, customizable drawing tools, collapsible controls, and annotation export and restore for database integration.
+A typed Vue 3 component for viewing DICOM images, navigating series, drawing annotations, and saving annotation snapshots in your own application.
 
 Vue DICOM Canvas wraps [DWV](https://github.com/ivmartel/dwv) in a typed Vue component. Controls sit inside the image, and a gear icon shows or hides the settings panel. It supports local files, image series, and remote DICOM URLs.
 
-> **Development status:** this repository contains the initial package implementation. Build and test it locally using the instructions below; no npm publication is implied.
+[Source code](https://github.com/SaqifHoque/vue-dicom-canvas) · [API reference](#component-api) · [Migration guide](MIGRATION.md) · [Security policy](SECURITY.md)
+
+## Installation
+
+```sh
+npm install @ys-reading/vue-dicom-canvas "vue@^3.5.0" "dwv@~0.36.4"
+```
+
+Vue `>=3.5.0 <4.0.0` and DWV `>=0.36.4 <0.37.0` are peer dependencies. Import the package stylesheet and copy its workers into your application's public assets:
+
+```sh
+mkdir -p public/assets/workers
+cp node_modules/@ys-reading/vue-dicom-canvas/workers/*.min.js public/assets/workers/
+```
+
+The worker files must be served from the application's own origin. Configure the directory with `worker-base-path`, as in the quick start below.
 
 ## Features
 
@@ -20,41 +35,24 @@ Vue DICOM Canvas wraps [DWV](https://github.com/ivmartel/dwv) in a typed Vue com
 - Lazy-loaded imaging engine, typed exports, and ESM/CommonJS builds.
 - Independent slice and temporal-frame navigation with sliders, number inputs, and imperative controls.
 - A generated 12-slice demo with fictional metadata.
+- Authenticated URL loading with isolated headers, credentials, retry, and cancellation.
+- Read-only review, annotation visibility, and optional JSON file import/download.
+- SSR-safe imports, hydration-stable IDs, and independent viewer instances.
 
-## Run locally
+## Contents
 
-Clone the repository and install its locked dependencies:
+- [Quick start](#quick-start)
+- [Remote and authenticated sources](#remote-and-authenticated-sources)
+- [Worker deployment](#worker-assets)
+- [Database persistence](#save-annotations-in-your-database)
+- [Annotation JSON files](#annotation-json-files)
+- [Component API](#component-api)
+- [SSR and multiple viewers](#ssr-and-multiple-viewers)
+- [Troubleshooting](#troubleshooting)
+- [Development](#development-and-checks)
+- [Licensing](#constraints-and-licensing)
 
-```sh
-git clone https://github.com/SaqifHoque/vue-dicom-canvas.git
-cd vue-dicom-canvas
-npm ci
-npm run dev
-```
-
-Open the URL printed by Vite. Use the gear icon to expand the image controls, select a shape and color, and drag to mark. Open **Try annotation save and restore** below the viewer to capture JSON, clear marks, and restore the saved snapshot. Demo snapshots are held in memory and are lost on refresh.
-
-For a static demo build:
-
-```sh
-npm run build:example
-npm run preview:example
-```
-
-The output is written to `example-dist/`. Regenerate the synthetic DICOM fixtures with `python3 scripts/generate-sample.py`.
-
-## Use in another Vue application
-
-The package name is `@ys-reading/vue-dicom-canvas`. Until a registry release is available, build a local tarball:
-
-```sh
-# From this repository
-npm ci
-npm pack
-
-# From your Vue application; replace the tarball path as needed
-npm install /path/to/ys-reading-vue-dicom-canvas-2.0.0.tgz vue "dwv@~0.36.4"
-```
+## Quick start
 
 Import both the named component and its stylesheet:
 
@@ -66,21 +64,43 @@ import '@ys-reading/vue-dicom-canvas/style.css'
 
 const source = ref<DicomSource>(null)
 const annotations = ref<DicomAnnotations | null>(null)
+const message = ref('')
 
 function openFiles(event: Event) {
     const input = event.target as HTMLInputElement
     annotations.value = null
     source.value = Array.from(input.files ?? [])
+    input.value = ''
 }
 </script>
 
 <template>
-    <input type="file" multiple @change="openFiles" />
-    <DicomViewer :source="source" v-model:annotations="annotations" height="600px" />
+    <label>Open DICOM files
+        <input type="file" multiple accept=".dcm,application/dicom" @change="openFiles" />
+    </label>
+    <DicomViewer
+        :source="source"
+        v-model:annotations="annotations"
+        height="600px"
+        worker-base-path="./assets/workers/"
+        show-annotation-file-controls
+        @error="message = $event.message"
+        @annotation-error="message = $event.message"
+        @worker-error="message = $event.message"
+    />
+    <p role="status">{{ message }}</p>
 </template>
 ```
 
 `source` accepts a `File`, URL string, array of files, array of URLs, or `null`. Arrays must contain only one source kind. Supply a new array to change a series. Remote requests follow browser CORS rules; local files are processed in the browser and are not uploaded by this package.
+
+## Remote and authenticated sources
+
+For a remote image or series, supply a URL or URL array through `source`:
+
+```vue
+<DicomViewer :source="['https://your-server.example/series/slice-01.dcm']" />
+```
 
 Authenticated URL loading uses `remoteRequestOptions`. Pass an `Authorization` header for token authentication, enable `withCredentials` for browser-managed cookies, and optionally limit concurrent URL requests with `batchSize`:
 
@@ -232,7 +252,31 @@ Generated viewer IDs use Vue 3.5's `useId()` so separate SSR requests and hydrat
 
 Each viewer owns its DWV app, source, annotations, history, controls, request credentials, and load sessions. Resetting or unmounting one viewer does not reset the others. Unmount settles pending loads, removes listeners, disconnects the resize observer, and releases its worker resolver reference; late initialization results are ignored. Worker deployment is shared at browser scope, so mounted viewers must use the same nonempty `workerBasePath` when configuring packaged workers.
 
+## Troubleshooting
+
+| Symptom | What to check |
+| --- | --- |
+| Viewer controls are unstyled | Import `@ys-reading/vue-dicom-canvas/style.css`. |
+| A compressed image fails to load | Copy all packaged worker files and verify that `workerBasePath` serves JavaScript from the same origin; inspect `worker-error` for the resolved URL. |
+| A remote load is blocked | Check the server's CORS response and the allowed origin, headers, and credential settings. |
+| Annotation restore is rejected | Load the matching study/image first and supply a version 1 package snapshot; inspect `annotation-error` or the imperative setter's thrown error. |
+| Two viewers share DOM IDs | Give explicit IDs unique values; separate Vue roots need distinct `app.config.idPrefix` values. |
+| A large study exceeds limits | Check `maxSources`, local file-size limits, and available client memory. |
+
 ## Development and checks
+
+Run the synthetic 12-slice demo locally:
+
+```sh
+git clone https://github.com/SaqifHoque/vue-dicom-canvas.git
+cd vue-dicom-canvas
+npm ci
+npm run dev
+```
+
+Open the URL printed by Vite. Use the gear icon to toggle settings, choose a shape, and draw on the image. The demo includes read-only review, file import/download, and in-memory save/restore. Its fictional study and snapshots contain no real patient data, and captured snapshots are lost on refresh.
+
+Build a static demo with `npm run build:example`, then serve it with `npm run preview:example`. Output is written to `example-dist/`. To test the package before registry publication, run `npm pack` and install the resulting `.tgz` in your application. Regenerate fixtures with `python3 scripts/generate-sample.py`.
 
 ```sh
 npm run check           # Tests, type checking, library build, worker verification
@@ -255,6 +299,6 @@ CI installs Chromium and its system dependencies, runs the suite in a separate j
 
 This is a viewer building block, not a certified medical device. Validate it for your intended use. Local inputs have count and size limits; enforce remote download limits and access controls in your backend. Filename and MIME checks are convenience filters, not DICOM validation. Rapid source replacement and decoder behavior also depend on DWV.
 
-The wrapper is currently marked `UNLICENSED`; a project license must be selected before third-party reuse is offered. The bundled DWV workers originate from DWV 0.36.4 and carry GPL-3.0 licensing. Bundling them does not change the wrapper's declared license. Review both before redistribution.
+The wrapper's package metadata currently declares `UNLICENSED`; this release preparation does not grant an open-source license for the wrapper. The bundled DWV workers originate from DWV 0.36.4 and include their GPL-3.0 license, notices, and integrity manifest. Review the wrapper's terms and the bundled workers before reuse or redistribution.
 
 See [MIGRATION.md](MIGRATION.md) for API migration and compatibility notes, and [RELEASE.md](RELEASE.md) for the release checks and publication decisions still requiring review. See [SECURITY.md](SECURITY.md) for input and deployment boundaries, [CHANGELOG.md](CHANGELOG.md) for implementation history, and [workers/NOTICE.md](workers/NOTICE.md) for worker provenance.
