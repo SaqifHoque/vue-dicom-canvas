@@ -2,7 +2,7 @@
 
 ## 2.0.0 (2026-10-14)
 
-Prepared for the first registry release of `@ys-reading/vue-dicom-canvas`:
+Prepared for the first registry release of `@saqif/vue-dicom-canvas`:
 
 - License the wrapper under GPL-3.0-only and include the complete license text.
 - Typed Vue 3.5 component for local and remote DICOM images and series.
@@ -135,7 +135,7 @@ The development entries below describe the feature batches included in version 2
 
 ### Development batch — Vue DICOM Canvas foundation
 
-- Rename the package to `@ys-reading/vue-dicom-canvas` and add repository metadata.
+- Rename the package to `@saqif/vue-dicom-canvas` and add repository metadata.
 - Add image-overlay controls with an accessible settings gear, slice navigation, drawing shapes and colors, undo/redo, zoom/pan, and window/level tools.
 - Add versioned annotation JSON export and restore through Vue bindings and component methods.
 - Include a synthetic 12-slice demo, persistence regression tests, and worker license notices.

@@ -4,21 +4,21 @@ Medical images need more than an image tag. A viewer has to understand the study
 
 I built **Vue DICOM Canvas** to bring those interactions into a Vue application through one typed component. It wraps DWV's imaging engine with Vue bindings, built-in controls, and a versioned annotation snapshot format.
 
-The package is called `@ys-reading/vue-dicom-canvas`. Its source is available on [GitHub](https://github.com/SaqifHoque/vue-dicom-canvas), alongside a synthetic 12-slice demo that you can run without using real patient data.
+The package is called `@saqif/vue-dicom-canvas`. Its source is available on [GitHub](https://github.com/SaqifHoque/vue-dicom-canvas), alongside a synthetic 12-slice demo that you can run without using real patient data.
 
 ## Start with one component
 
 The package supports Vue 3.5 and DWV 0.36.4. Install it with its peer dependencies:
 
 ```sh
-npm install @ys-reading/vue-dicom-canvas "vue@^3.5.0" "dwv@~0.36.4"
+npm install @saqif/vue-dicom-canvas "vue@^3.5.0" "dwv@~0.36.4"
 ```
 
 For a Vite application, copy the packaged workers into the public directory:
 
 ```sh
 mkdir -p public/assets/workers
-cp node_modules/@ys-reading/vue-dicom-canvas/workers/*.min.js public/assets/workers/
+cp node_modules/@saqif/vue-dicom-canvas/workers/*.min.js public/assets/workers/
 ```
 
 Then import the component and its stylesheet:
@@ -30,8 +30,8 @@ import {
     DicomViewer,
     type DicomSource,
     type DicomAnnotations
-} from '@ys-reading/vue-dicom-canvas'
-import '@ys-reading/vue-dicom-canvas/style.css'
+} from '@saqif/vue-dicom-canvas'
+import '@saqif/vue-dicom-canvas/style.css'
 
 const source = ref<DicomSource>(null)
 const annotations = ref<DicomAnnotations | null>(null)
@@ -121,4 +121,4 @@ If you are building a Vue interface around DICOM images, the [README](https://gi
 
 The package is a viewer building block rather than a certified medical device. Applications remain responsible for access control, storage, and handling study data. Vue DICOM Canvas is licensed under GPL-3.0-only, and the bundled DWV workers retain their GPL-3.0 licensing and notices.
 
-**Links:** [Source and documentation](https://github.com/SaqifHoque/vue-dicom-canvas) · [Package page](https://www.npmjs.com/package/@ys-reading/vue-dicom-canvas)
+**Links:** [Source and documentation](https://github.com/SaqifHoque/vue-dicom-canvas) · [Package page](https://www.npmjs.com/package/@saqif/vue-dicom-canvas)

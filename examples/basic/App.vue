@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { DicomViewer, type DicomSource, type DicomAnnotations } from '@ys-reading/vue-dicom-canvas'
+import { DicomViewer, type DicomSource, type DicomAnnotations } from '@saqif/vue-dicom-canvas'
 
 const sample = Array.from({ length: 12 }, (_, i) => `${import.meta.env.BASE_URL}series/slice-${String(i + 1).padStart(2, '0')}.dcm`)
 const source = ref<DicomSource>(sample)
