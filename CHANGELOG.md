@@ -1,16 +1,17 @@
 # Changelog
 
-## 2.0.0 — Release candidate (2026-10-13)
+## 2.0.0 (2026-10-14)
 
 Prepared for the first registry release of `@ys-reading/vue-dicom-canvas`:
 
+- License the wrapper under GPL-3.0-only and include the complete license text.
 - Typed Vue 3.5 component for local and remote DICOM images and series.
 - Navigation, drawing, editing, read-only review, and annotation persistence.
 - Configurable workers, authenticated remote requests, cancellation, and retry.
 - Annotation JSON file transfer, SSR-safe imports, and multiple viewer instances.
 - ESM/CommonJS builds, public declarations, synthetic demo, browser regressions, and fresh-consumer verification.
 
-The development entries below describe the feature batches included in this candidate. Registry publication has not yet been confirmed.
+The development entries below describe the feature batches included in version 2.0.0.
 
 ### Development batch — Release readiness
 
