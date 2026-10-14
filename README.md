@@ -4,7 +4,7 @@ A typed Vue 3 component for viewing DICOM images, navigating series, drawing ann
 
 Vue DICOM Canvas wraps [DWV](https://github.com/ivmartel/dwv) in a typed Vue component. Controls sit inside the image, and a gear icon shows or hides the settings panel. It supports local files, image series, and remote DICOM URLs.
 
-[Source code](https://github.com/SaqifHoque/vue-dicom-canvas) · [API reference](#component-api) · [Migration guide](MIGRATION.md) · [Security policy](SECURITY.md)
+[npm package](https://www.npmjs.com/package/@saqif/vue-dicom-canvas) · [Source code](https://github.com/SaqifHoque/vue-dicom-canvas) · [API reference](#component-api) · [Migration guide](MIGRATION.md) · [Security policy](SECURITY.md)
 
 ## Installation
 
