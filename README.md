@@ -299,6 +299,6 @@ CI installs Chromium and its system dependencies, runs the suite in a separate j
 
 This is a viewer building block, not a certified medical device. Validate it for your intended use. Local inputs have count and size limits; enforce remote download limits and access controls in your backend. Filename and MIME checks are convenience filters, not DICOM validation. Rapid source replacement and decoder behavior also depend on DWV.
 
-The wrapper's package metadata currently declares `UNLICENSED`; this release preparation does not grant an open-source license for the wrapper. The bundled DWV workers originate from DWV 0.36.4 and include their GPL-3.0 license, notices, and integrity manifest. Review the wrapper's terms and the bundled workers before reuse or redistribution.
+Vue DICOM Canvas is licensed under **GPL-3.0-only**. See [LICENSE](LICENSE) for the full license text. The bundled DWV workers originate from DWV 0.36.4 and retain their GPL-3.0 license, notices, and integrity manifest in `workers/`.
 
 See [MIGRATION.md](MIGRATION.md) for API migration and compatibility notes, and [RELEASE.md](RELEASE.md) for the release checks and publication decisions still requiring review. See [SECURITY.md](SECURITY.md) for input and deployment boundaries, [CHANGELOG.md](CHANGELOG.md) for implementation history, and [workers/NOTICE.md](workers/NOTICE.md) for worker provenance.

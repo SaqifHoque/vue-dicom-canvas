@@ -119,6 +119,6 @@ npm run dev
 
 If you are building a Vue interface around DICOM images, the [README](https://github.com/SaqifHoque/vue-dicom-canvas#readme) covers setup, worker deployment, API methods, persistence, and troubleshooting.
 
-The package is a viewer building block rather than a certified medical device. Applications remain responsible for access control, storage, and handling study data. The wrapper currently declares `UNLICENSED`, while the bundled DWV workers include their GPL-3.0 licensing and notices; review those terms before reuse or redistribution.
+The package is a viewer building block rather than a certified medical device. Applications remain responsible for access control, storage, and handling study data. Vue DICOM Canvas is licensed under GPL-3.0-only, and the bundled DWV workers retain their GPL-3.0 licensing and notices.
 
 **Links:** [Source and documentation](https://github.com/SaqifHoque/vue-dicom-canvas) · [Package page](https://www.npmjs.com/package/@ys-reading/vue-dicom-canvas)

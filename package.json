@@ -75,7 +75,7 @@
         "vue",
         "vue3"
     ],
-    "license": "UNLICENSED",
+    "license": "GPL-3.0-only",
     "engines": {
         "node": ">=18.0.0"
     },
