@@ -1,14 +1,14 @@
 # Migration to Vue DICOM Canvas
 
-These notes describe the reviewed implementation under `@ys-reading/vue-dicom-canvas`. The inherited `2.0.0` manifest version does not establish that this renamed package has been published.
+These notes describe the reviewed implementation under `@saqif/vue-dicom-canvas`. The inherited `2.0.0` manifest version does not establish that this renamed package has been published.
 
 ## Imports and compatibility
 
 Use the named `DicomViewer` export and explicitly import the stylesheet:
 
 ```ts
-import { DicomViewer, type DicomAnnotations, type DicomSource } from '@ys-reading/vue-dicom-canvas'
-import '@ys-reading/vue-dicom-canvas/style.css'
+import { DicomViewer, type DicomAnnotations, type DicomSource } from '@saqif/vue-dicom-canvas'
+import '@saqif/vue-dicom-canvas/style.css'
 ```
 
 Install Vue `>=3.5.0 <4.0.0` and DWV `>=0.36.4 <0.37.0` as peers. Vue 3.5 is required for hydration-stable viewer IDs. Test the versions your application installs; the fresh-consumer check pins the versions installed in this checkout and does not establish compatibility with every version in the peer range.

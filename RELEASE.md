@@ -25,7 +25,7 @@ CI runs the package verification and browser suite in separate jobs. Review both
 | Decision | Current repository state | Required owner action |
 | --- | --- | --- |
 | Wrapper license and distribution terms | `GPL-3.0-only`, full text in LICENSE | Preserve the bundled GPL-3.0 DWV worker license and notices. |
-| Registry destination and access | Package name is `@ys-reading/vue-dicom-canvas` | Confirm scope ownership, package access, and who may publish. |
+| Registry destination and access | Package name is `@saqif/vue-dicom-canvas` | Confirm scope ownership, package access, and who may publish. |
 | First release version | `2.0.0`, release candidate recorded in CHANGELOG.md | Confirm the registry upload before marking the release published. |
 | Security reporting | SECURITY.md requests private maintainer contact but no dedicated contact is recorded | Configure a monitored contact or repository private vulnerability reporting. |
 | Release credentials and provenance | No publishing workflow is configured | Approve the publication mechanism and credentials/provenance policy. |
