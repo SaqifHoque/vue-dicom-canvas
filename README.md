@@ -6,6 +6,13 @@ Vue DICOM Canvas wraps [DWV](https://github.com/ivmartel/dwv) in a typed Vue com
 
 [npm package](https://www.npmjs.com/package/@saqif/vue-dicom-canvas) · [Source code](https://github.com/SaqifHoque/vue-dicom-canvas) · [API reference](#component-api) · [Migration guide](MIGRATION.md) · [Security policy](SECURITY.md)
 
+
+## Live demo
+
+**[Open the interactive demo](https://vue-dicom-canvas.vercel.app/)** — no installation or sign-in required.
+
+Try the generated 12-slice study in your browser: navigate slices, adjust zoom and contrast, draw annotations, and capture or restore annotation JSON. The included study uses fictional metadata. Local files are processed in your browser; captured snapshots are held in memory and reset on refresh.
+
 ## Installation
 
 ```sh
