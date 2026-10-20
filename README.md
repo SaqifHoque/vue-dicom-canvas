@@ -7,9 +7,11 @@ Vue DICOM Canvas wraps [DWV](https://github.com/ivmartel/dwv) in a typed Vue com
 [npm package](https://www.npmjs.com/package/@saqif/vue-dicom-canvas) · [Source code](https://github.com/SaqifHoque/vue-dicom-canvas) · [API reference](#component-api) · [Migration guide](MIGRATION.md) · [Security policy](SECURITY.md)
 
 
-## Live demo
+## Documentation & live playground
 
-**[Open the interactive demo](https://vue-dicom-canvas.vercel.app/)** — no installation or sign-in required.
+**[Documentation](https://vue-dicom-canvas.vercel.app/)** · **[Live playground](https://vue-dicom-canvas.vercel.app/#playground)** · **[Quick start](https://vue-dicom-canvas.vercel.app/#quickstart)**
+
+Installation guides, copyable examples, and an API reference for the published npm package. No sign-in required.
 
 Try the generated 12-slice study in your browser: navigate slices, adjust zoom and contrast, draw annotations, and capture or restore annotation JSON. The included study uses fictional metadata. Local files are processed in your browser; captured snapshots are held in memory and reset on refresh.
 
@@ -315,3 +317,7 @@ This is a viewer building block, not a certified medical device. Validate it for
 Vue DICOM Canvas is licensed under **GPL-3.0-only**. See [LICENSE](LICENSE) for the full license text. The bundled DWV workers originate from DWV 0.36.4 and retain their GPL-3.0 license, notices, and integrity manifest in `workers/`.
 
 See [MIGRATION.md](MIGRATION.md) for API migration and compatibility notes, and [RELEASE.md](RELEASE.md) for the release checks and publication decisions still requiring review. See [SECURITY.md](SECURITY.md) for input and deployment boundaries, [CHANGELOG.md](CHANGELOG.md) for implementation history, and [workers/NOTICE.md](workers/NOTICE.md) for worker provenance.
+
+## Documentation website source
+
+The full documentation site lives in [`docs-site/`](docs-site/). Run `npm ci` and `npm run build` from that directory; deploy `docs-site/dist/`. It consumes the published npm component and is excluded from the library archive.

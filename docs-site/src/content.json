@@ -1,0 +1,670 @@
+{
+  "name": "Vue DICOM Canvas",
+  "package": "@saqif/vue-dicom-canvas",
+  "version": "2.0.1",
+  "repo": "vue-dicom-canvas",
+  "tagline": "Medical imaging, embedded in Vue.",
+  "isDicom": true,
+  "accent": "cyan",
+  "license": "GPL-3.0-only",
+  "pages": [
+    {
+      "id": "overview",
+      "title": "Introduction",
+      "group": "Start here",
+      "lead": "Medical imaging, embedded in Vue.",
+      "blocks": [
+        {
+          "kind": "p",
+          "text": "A reusable Vue 3 component library by Saqif Hoque. Install the package in your own application, connect your data, and shape the surrounding interface however you need."
+        },
+        {
+          "kind": "list",
+          "items": [
+            "Real component, not an iframe or a hosted service.",
+            "ES module package, styles, and public TypeScript declarations.",
+            "Live examples use the published npm package, not a source-code alias."
+          ]
+        },
+        {
+          "kind": "code",
+          "lang": "bash",
+          "text": "npm install @saqif/vue-dicom-canvas vue@^3.5.0 dwv@~0.36.4"
+        },
+        {
+          "kind": "note",
+          "text": "Use the navigation to get started, open the playground, or look up individual props. These docs cover npm version 2.0.1."
+        }
+      ]
+    },
+    {
+      "id": "installation",
+      "title": "Installation",
+      "group": "Start here",
+      "lead": "Add the package to an existing Vue 3 application.",
+      "blocks": [
+        {
+          "kind": "code",
+          "lang": "bash",
+          "text": "npm install @saqif/vue-dicom-canvas \"vue@^3.5.0\" \"dwv@~0.36.4\""
+        },
+        {
+          "kind": "p",
+          "text": "Import the component and its CSS once in your application. Vue is a peer dependency; keep a single compatible Vue instance."
+        },
+        {
+          "kind": "code",
+          "lang": "javascript",
+          "text": "import { DicomViewer } from '@saqif/vue-dicom-canvas'\nimport '@saqif/vue-dicom-canvas/style.css'"
+        },
+        {
+          "kind": "note",
+          "text": "DICOM Canvas also needs decoder worker assets. Complete the Worker setup guide before using compressed studies."
+        },
+        {
+          "kind": "table",
+          "head": [
+            "Dependency",
+            "Supported range"
+          ],
+          "rows": [
+            [
+              "Vue",
+              ">=3.5.0 <4.0.0"
+            ],
+            [
+              "DWV",
+              ">=0.36.4 <0.37.0"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "quickstart",
+      "title": "Quick start",
+      "group": "Start here",
+      "lead": "Render the component inside an ordinary div.",
+      "blocks": [
+        {
+          "kind": "code",
+          "lang": "vue",
+          "text": "<script setup>\nimport { ref } from 'vue'\nimport { DicomViewer } from '@saqif/vue-dicom-canvas'\nimport '@saqif/vue-dicom-canvas/style.css'\n\nconst source = ref(null)\nfunction openFiles(event) {\n  source.value = Array.from(event.target.files ?? [])\n}\n</script>\n\n<template>\n  <input type=\"file\" multiple accept=\".dcm\" @change=\"openFiles\">\n  <div style=\"max-width: 900px; border: 1px solid #cbd5e1\">\n    <DicomViewer :source=\"source\" height=\"560px\"\n      worker-base-path=\"/assets/workers/\" />\n  </div>\n</template>"
+        },
+        {
+          "kind": "p",
+          "text": "The div belongs to your application. You control its dimensions, layout, and other UI. The imported package renders the interactive component inside it."
+        },
+        {
+          "kind": "note",
+          "text": "Use local synthetic or appropriately authorized files when trying imaging features."
+        }
+      ]
+    },
+    {
+      "id": "playground",
+      "title": "Live playground",
+      "group": "Start here",
+      "lead": "Try the published component and inspect its integration code.",
+      "blocks": [
+        {
+          "kind": "p",
+          "text": "This is a real npm consumer, running in your browser. Changes here are demonstration state and reset when you reload."
+        },
+        {
+          "kind": "code",
+          "lang": "vue",
+          "text": "<script setup>\nimport { ref } from 'vue'\nimport { DicomViewer } from '@saqif/vue-dicom-canvas'\nimport '@saqif/vue-dicom-canvas/style.css'\n\nconst source = ref(null)\nfunction openFiles(event) {\n  source.value = Array.from(event.target.files ?? [])\n}\n</script>\n\n<template>\n  <input type=\"file\" multiple accept=\".dcm\" @change=\"openFiles\">\n  <div style=\"max-width: 900px; border: 1px solid #cbd5e1\">\n    <DicomViewer :source=\"source\" height=\"560px\"\n      worker-base-path=\"/assets/workers/\" />\n  </div>\n</template>"
+        }
+      ]
+    },
+    {
+      "id": "props",
+      "title": "Props",
+      "group": "API reference",
+      "lead": "Public component inputs from the installed npm TypeScript declarations.",
+      "blocks": [
+        {
+          "kind": "table",
+          "head": [
+            "Prop",
+            "Type",
+            "Purpose"
+          ],
+          "rows": [
+            [
+              "annotations",
+              "DicomAnnotations | null",
+              "Versioned annotation snapshot; bind with v-model:annotations."
+            ],
+            [
+              "annotationsVisible",
+              "boolean",
+              "Show or hide annotation layers without deleting marks."
+            ],
+            [
+              "readOnly",
+              "boolean",
+              "Allow review while blocking viewer-originated annotation edits."
+            ],
+            [
+              "showControls",
+              "boolean",
+              "Display the built-in viewer controls."
+            ],
+            [
+              "showAnnotationFileControls",
+              "boolean",
+              "Show Import JSON and Download JSON controls."
+            ],
+            [
+              "settingsOpen",
+              "boolean",
+              "Control settings visibility with v-model:settings-open."
+            ],
+            [
+              "tools",
+              "Record<string, ToolConfig>",
+              "DWV tool configuration. Keep stable; read at mount."
+            ],
+            [
+              "drawingShapes",
+              "readonly DicomDrawingShape[]",
+              "Drawing shapes offered in the selector; read at mount."
+            ],
+            [
+              "workerBasePath",
+              "string",
+              "Same-origin URL directory for the packaged decoder workers; read at mount."
+            ],
+            [
+              "remoteRequestOptions",
+              "DicomRemoteRequestOptions",
+              "Optional headers, cookie credentials, and URL request batch size."
+            ],
+            [
+              "source",
+              "DicomSource",
+              "A local File, URL, homogeneous array of files or URLs, or null."
+            ],
+            [
+              "viewerId",
+              "string",
+              "Unique stable DOM identifier; a generated ID is used when omitted."
+            ],
+            [
+              "width",
+              "string | number",
+              "CSS width or numeric dimension."
+            ],
+            [
+              "height",
+              "string | number",
+              "CSS height or numeric dimension. Set an explicit height for your layout."
+            ],
+            [
+              "background",
+              "string",
+              "Viewer background color."
+            ],
+            [
+              "autoFit",
+              "boolean",
+              "Fit loaded images to their container automatically."
+            ],
+            [
+              "ariaLabel",
+              "string",
+              "Accessible name of the viewer region."
+            ],
+            [
+              "maxSources",
+              "number",
+              "Maximum number of accepted input sources."
+            ],
+            [
+              "maxFileSizeBytes",
+              "number",
+              "Maximum accepted size of a single local file."
+            ],
+            [
+              "maxTotalFileSizeBytes",
+              "number",
+              "Maximum combined accepted local-file size."
+            ],
+            [
+              "allowInsecureHttp",
+              "boolean",
+              "Opt in to HTTP URL sources where browser security permits."
+            ],
+            [
+              "allowArchives",
+              "boolean",
+              "Opt in to archive inputs; validate against your application policy."
+            ],
+            [
+              "validationConcurrency",
+              "number",
+              "Maximum simultaneous local-file signature reads during validation."
+            ]
+          ]
+        },
+        {
+          "kind": "note",
+          "text": "Kebab-case is used in templates: workerBasePath becomes worker-base-path."
+        }
+      ]
+    },
+    {
+      "id": "workers",
+      "title": "Worker setup",
+      "group": "Guides",
+      "lead": "Serve decoder workers from the same origin as your app.",
+      "blocks": [
+        {
+          "kind": "code",
+          "lang": "bash",
+          "text": "mkdir -p public/assets/workers\ncp node_modules/@saqif/vue-dicom-canvas/workers/*.min.js public/assets/workers/"
+        },
+        {
+          "kind": "code",
+          "lang": "vue",
+          "text": "<DicomViewer :source=\"source\"\n  worker-base-path=\"/assets/workers/\" />"
+        },
+        {
+          "kind": "p",
+          "text": "Keep all six packaged worker files. These runtime assets are required for supported decoding paths; they are not demo code."
+        },
+        {
+          "kind": "note",
+          "text": "For subpath deployments, use a document-relative worker-base-path such as ./assets/workers/. Every mounted viewer must use the same worker directory."
+        },
+        {
+          "kind": "p",
+          "text": "A missing worker, HTML fallback response, incorrect base path, or cross-origin URL can prevent decoding. Listen to worker-error to identify the resolved URL."
+        }
+      ]
+    },
+    {
+      "id": "sources",
+      "title": "Files & remote URLs",
+      "group": "Guides",
+      "lead": "Load files, series, or an authenticated imaging endpoint.",
+      "blocks": [
+        {
+          "kind": "code",
+          "lang": "javascript",
+          "text": "const source = ref(null)\n// Local files stay in the browser:\nsource.value = Array.from(fileInput.files ?? [])\n// A remote series requests these URLs from the browser:\nsource.value = ['/studies/slice-01.dcm', '/studies/slice-02.dcm']"
+        },
+        {
+          "kind": "code",
+          "lang": "vue",
+          "text": "<DicomViewer :source=\"source\"\n  :remote-request-options=\"{\n    headers: [{ name: 'Authorization', value: `Bearer ${token}` }],\n    withCredentials: false,\n    batchSize: 4\n  }\"\n  worker-base-path=\"/assets/workers/\" />"
+        },
+        {
+          "kind": "p",
+          "text": "The remote server must allow your browser origin through CORS. Cookie-based cross-origin requests require explicit allowed origins and credential support. Set withCredentials only when your endpoint uses cookies."
+        },
+        {
+          "kind": "note",
+          "text": "Do not place access tokens in URLs or committed code. Apply download limits and access controls at your backend. Source arrays must contain only files or only URLs, not both."
+        }
+      ]
+    },
+    {
+      "id": "annotations",
+      "title": "Annotation persistence",
+      "group": "Guides",
+      "lead": "Capture a snapshot and restore it with the same study.",
+      "blocks": [
+        {
+          "kind": "code",
+          "lang": "vue",
+          "text": "<script setup>\nimport { ref } from 'vue'\nimport { DicomViewer } from '@saqif/vue-dicom-canvas'\nimport '@saqif/vue-dicom-canvas/style.css'\nconst source = ref('/sample.dcm')\nconst annotations = ref(null)\n</script>\n<template>\n  <DicomViewer :source=\"source\" v-model:annotations=\"annotations\"\n    show-annotation-file-controls worker-base-path=\"/assets/workers/\" />\n</template>"
+        },
+        {
+          "kind": "list",
+          "items": [
+            "Store the emitted snapshot JSON through your own API, along with the study identifier.",
+            "Restore with the matching DICOM source. Invalid references are rejected.",
+            "Replacing annotations creates a new undo/redo boundary.",
+            "The package does not autosave or connect to a database."
+          ]
+        },
+        {
+          "kind": "note",
+          "text": "Annotation snapshots can include study metadata. Protect them as study data. This is the package’s versioned format, not Annotorious JSON."
+        }
+      ]
+    },
+    {
+      "id": "review",
+      "title": "Read-only & accessibility",
+      "group": "Guides",
+      "lead": "Build review workflows and keyboard-friendly viewers.",
+      "blocks": [
+        {
+          "kind": "code",
+          "lang": "vue",
+          "text": "<DicomViewer :source=\"source\" :annotations=\"savedSnapshot\"\n  read-only :annotations-visible=\"true\"\n  aria-label=\"Study review\" worker-base-path=\"/assets/workers/\" />"
+        },
+        {
+          "kind": "p",
+          "text": "Read-only mode blocks viewer-originated annotation changes while preserving navigation, zoom, contrast, and incoming prop restores. Callers using getApp() directly must enforce their own policy."
+        },
+        {
+          "kind": "table",
+          "head": [
+            "Key",
+            "Action"
+          ],
+          "rows": [
+            [
+              "Left / Right or Page Up / Page Down",
+              "Previous / next slice"
+            ],
+            [
+              "Up / Down",
+              "Navigate temporal frames"
+            ],
+            [
+              "+ / −",
+              "Zoom"
+            ],
+            [
+              "0 / F",
+              "Reset view / fit"
+            ],
+            [
+              "S / Z / W",
+              "Scroll / zoom-pan / window-level"
+            ]
+          ]
+        },
+        {
+          "kind": "p",
+          "text": "Shortcuts act only when the viewer region has focus. Controls and editable inputs retain their standard keyboard behavior."
+        }
+      ]
+    },
+    {
+      "id": "events",
+      "title": "Events",
+      "group": "API reference",
+      "lead": "Connect loading, annotations, navigation, and errors to your application.",
+      "blocks": [
+        {
+          "kind": "table",
+          "head": [
+            "Event",
+            "Payload / use"
+          ],
+          "rows": [
+            [
+              "loaded",
+              "DWV load event; image is ready."
+            ],
+            [
+              "error",
+              "Error, optional underlying event."
+            ],
+            [
+              "update:annotations",
+              "DicomAnnotations; supports v-model."
+            ],
+            [
+              "update:annotationsVisible",
+              "boolean; supports v-model."
+            ],
+            [
+              "update:settingsOpen",
+              "boolean; supports v-model."
+            ],
+            [
+              "annotations-change",
+              "Snapshot plus reason and history details."
+            ],
+            [
+              "history-change",
+              "Undo/redo history state."
+            ],
+            [
+              "annotation-error",
+              "Invalid or incompatible snapshot."
+            ],
+            [
+              "annotation-selection-change",
+              "Selected annotation or null."
+            ],
+            [
+              "annotation-list-change",
+              "Annotation summary list."
+            ],
+            [
+              "navigation-change",
+              "Slice and temporal-frame state."
+            ],
+            [
+              "window-level-change",
+              "Contrast state or null."
+            ],
+            [
+              "window-level-error",
+              "Invalid contrast input."
+            ],
+            [
+              "viewport-change",
+              "Zoom and pan state or null."
+            ],
+            [
+              "viewport-error",
+              "Invalid viewport input."
+            ],
+            [
+              "worker-error",
+              "Decoder worker URL and loading failure."
+            ],
+            [
+              "performance-measure",
+              "DicomPerformanceMeasure."
+            ],
+            [
+              "load-start / load-progress",
+              "Loading lifecycle events."
+            ],
+            [
+              "load-abort",
+              "dwv or reset reason; optional event."
+            ],
+            [
+              "load-timeout",
+              "Error; optional event."
+            ]
+          ]
+        },
+        {
+          "kind": "code",
+          "lang": "vue",
+          "text": "<DicomViewer :source=\"source\" @error=\"onError\"\n  @loaded=\"onLoaded\" @worker-error=\"onWorkerError\" />"
+        }
+      ]
+    },
+    {
+      "id": "methods",
+      "title": "Template-ref methods",
+      "group": "API reference",
+      "lead": "Drive the viewer from your own interface.",
+      "blocks": [
+        {
+          "kind": "table",
+          "head": [
+            "Methods",
+            "Purpose"
+          ],
+          "rows": [
+            [
+              "load(source?, requestOptions?) / retry()",
+              "Load data or retry the last source; returns a load result."
+            ],
+            [
+              "reset() / getStatus() / getApp()",
+              "Lifecycle and advanced DWV access."
+            ],
+            [
+              "getAnnotations() / setAnnotations(snapshot)",
+              "Export or replace annotation snapshots."
+            ],
+            [
+              "getHistoryState()",
+              "Inspect undo/redo availability."
+            ],
+            [
+              "getSelectedAnnotation() / getAnnotationSummaries()",
+              "Read current marks and selection."
+            ],
+            [
+              "selectAnnotation(uid)",
+              "Select and navigate to an existing mark."
+            ],
+            [
+              "updateSelectedAnnotation(edit) / deleteSelectedAnnotation()",
+              "Modify the selected annotation."
+            ],
+            [
+              "getNavigationState() / setSlice(n) / setFrame(n)",
+              "One-based slice and frame navigation."
+            ],
+            [
+              "getWindowLevelState() / setWindowLevel(value)",
+              "Read or set contrast center and width."
+            ],
+            [
+              "setWindowLevelPreset(name) / resetWindowLevel()",
+              "Apply or reset image contrast presets."
+            ],
+            [
+              "getViewportState() / setViewportZoom(factor)",
+              "Read viewport or set bounded zoom."
+            ],
+            [
+              "setViewportPan(point) / resetViewport() / fitToContainer()",
+              "Control pan and container fit."
+            ]
+          ]
+        },
+        {
+          "kind": "code",
+          "lang": "javascript",
+          "text": "const viewer = ref(null)\nfunction zoomIn() { viewer.value?.setViewportZoom(1.5) }\nfunction snapshot() { return viewer.value?.getAnnotations() }"
+        },
+        {
+          "kind": "p",
+          "text": "Wait for loaded before imperative operations that require an image. Prop-based annotations can be supplied earlier and are applied when data is ready."
+        }
+      ]
+    },
+    {
+      "id": "slots",
+      "title": "Slots & TypeScript",
+      "group": "API reference",
+      "lead": "Customize lifecycle UI and use typed source data.",
+      "blocks": [
+        {
+          "kind": "table",
+          "head": [
+            "Slot",
+            "Slot props"
+          ],
+          "rows": [
+            [
+              "loading",
+              "No props; replace the loading state."
+            ],
+            [
+              "empty",
+              "No props; replace the no-source state."
+            ],
+            [
+              "error",
+              "{ error, retry }; display and retry a failed load."
+            ]
+          ]
+        },
+        {
+          "kind": "code",
+          "lang": "typescript",
+          "text": "import type { DicomSource, DicomAnnotations,\n  DicomViewerProps, DicomLoadResult } from '@saqif/vue-dicom-canvas'\nconst source = ref<DicomSource>(null)\nconst marks = ref<DicomAnnotations | null>(null)"
+        },
+        {
+          "kind": "p",
+          "text": "ESM and CommonJS imports are available. Imports are SSR-safe; image rendering runs after the component mounts in the browser. Use independent source and annotation state for each viewer."
+        }
+      ]
+    },
+    {
+      "id": "troubleshooting",
+      "title": "Troubleshooting",
+      "group": "Resources",
+      "lead": "Common integration issues and direct checks.",
+      "blocks": [
+        {
+          "kind": "table",
+          "head": [
+            "Symptom",
+            "Check"
+          ],
+          "rows": [
+            [
+              "Blank or collapsed viewer",
+              "Set a visible container height and import the package CSS."
+            ],
+            [
+              "Decoder worker fails",
+              "Copy the workers, check worker-base-path, and verify the URL returns JavaScript rather than an HTML fallback."
+            ],
+            [
+              "Remote image fails",
+              "Check HTTPS, CORS, authentication headers, server availability, and source limits."
+            ],
+            [
+              "Snapshot will not restore",
+              "Use the matching study, image/frame references, and package snapshot format."
+            ],
+            [
+              "Drawing unavailable",
+              "Turn off read-only mode and enable annotations visibility."
+            ],
+            [
+              "Two viewers conflict",
+              "Use unique viewer IDs and one shared worker directory."
+            ]
+          ]
+        },
+        {
+          "kind": "note",
+          "text": "This is a viewer building block, not a certified medical device. Validate your application for its intended use."
+        }
+      ]
+    },
+    {
+      "id": "license",
+      "title": "License & package contents",
+      "group": "Resources",
+      "lead": "Understand the distribution boundary.",
+      "blocks": [
+        {
+          "kind": "p",
+          "text": "Vue DICOM Canvas is GPL-3.0-only. DWV workers retain their license and notices. Review these obligations before choosing the component for your application."
+        },
+        {
+          "kind": "p",
+          "text": "This reference covers npm version 2.0.1, which includes example files alongside the compiled exports, workers, and documentation. GitHub keeps the standalone examples and this website source. Check the npm archive contents for the version you install; worker files are runtime assets and must remain available."
+        },
+        {
+          "kind": "note",
+          "text": "The playground uses a generated synthetic study. Files selected from your device are processed locally by the component; this documentation site does not upload them."
+        }
+      ]
+    }
+  ]
+}

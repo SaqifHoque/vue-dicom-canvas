@@ -43,3 +43,8 @@ test-results/
 # Standalone npm consumer demo
 examples/minimal/public/assets/
 !examples/minimal/public/sample.dcm
+
+# Documentation site build assets
+docs-site/public/assets/
+!docs-site/public/sample.dcm
+!docs-site/public/series/slice-*.dcm
