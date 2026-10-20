@@ -83,7 +83,7 @@
         "type": "git",
         "url": "git+https://github.com/SaqifHoque/vue-dicom-canvas.git"
     },
-    "homepage": "https://github.com/SaqifHoque/vue-dicom-canvas#readme",
+    "homepage": "https://vue-dicom-canvas.vercel.app/",
     "bugs": {
         "url": "https://github.com/SaqifHoque/vue-dicom-canvas/issues"
     }
