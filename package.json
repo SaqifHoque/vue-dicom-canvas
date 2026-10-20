@@ -5,7 +5,7 @@
         "access": "public",
         "registry": "https://registry.npmjs.org/"
     },
-    "description": "A Vue 3 DICOM viewer with built-in slice navigation, customizable drawing tools, collapsible controls, and annotation export and restore for database integration.",
+    "description": "A TypeScript-ready Vue 3 DICOM viewer with slice navigation, zoom and window/level controls, drawing annotations, JSON import/export, and a live interactive demo.",
     "type": "module",
     "sideEffects": [
         "**/*.css"
