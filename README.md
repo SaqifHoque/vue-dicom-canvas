@@ -13,6 +13,12 @@ Vue DICOM Canvas wraps [DWV](https://github.com/ivmartel/dwv) in a typed Vue com
 
 Try the generated 12-slice study in your browser: navigate slices, adjust zoom and contrast, draw annotations, and capture or restore annotation JSON. The included study uses fictional metadata. Local files are processed in your browser; captured snapshots are held in memory and reset on refresh.
 
+## Minimal package consumer
+
+See [`examples/minimal/`](examples/minimal/) for a blank page that installs this package from npm and renders `DicomViewer` inside a bordered div.
+
+The npm archive contains the compiled component, types, styles, required decoder workers, and documentation. Demo source, generated websites, sample DICOM studies, and development scripts remain in GitHub and are excluded from npm.
+
 ## Installation
 
 ```sh

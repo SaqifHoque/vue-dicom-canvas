@@ -1,6 +1,6 @@
 {
     "name": "@saqif/vue-dicom-canvas",
-    "version": "2.0.0",
+    "version": "2.0.2",
     "publishConfig": {
         "access": "public",
         "registry": "https://registry.npmjs.org/"
@@ -13,18 +13,11 @@
     "files": [
         "dist",
         "workers",
-        "scripts",
         "README.md",
         "SECURITY.md",
         "MIGRATION.md",
         "RELEASE.md",
-        "CHANGELOG.md",
-        "examples/basic/*.vue",
-        "examples/basic/*.ts",
-        "examples/basic/*.json",
-        "examples/basic/*.html",
-        "examples/basic/public/sample.dcm",
-        "examples/basic/public/series/*.dcm"
+        "CHANGELOG.md"
     ],
     "main": "./dist/index.cjs",
     "module": "./dist/index.js",

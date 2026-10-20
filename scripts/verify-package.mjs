@@ -25,11 +25,9 @@ try {
         ...workers.map(worker => `workers/${worker}.worker.min.js`)
     ]) assert.ok(paths.has(path), `Tarball is missing ${path}`)
     for (const path of paths) {
-        assert.ok(!/(^|\/)(\.git|\.env[^/]*|node_modules|test-results|playwright-report|src|tests)(\/|$)/.test(path), `Unexpected tarball file: ${path}`)
+        assert.ok(!/(^|\/)(\.git|\.env[^/]*|node_modules|test-results|playwright-report|src|tests|examples|example-dist|demo-dist)(\/|$)/.test(path), `Unexpected tarball file: ${path}`)
         assert.ok(!path.endsWith('.tsbuildinfo') && !path.endsWith('.log'), `Unexpected build artifact: ${path}`)
-        if (/\.(dcm|dicom|zip)$/i.test(path)) {
-            assert.ok(path === 'examples/basic/public/sample.dcm' || /^examples\/basic\/public\/series\/slice-\d{2}\.dcm$/.test(path), `Unexpected study or archive: ${path}`)
-        }
+        assert.ok(!/\.(dcm|dicom|zip)$/i.test(path), `Demo data or archive in tarball: ${path}`)
     }
     assert.equal([...paths].filter(path => /\.worker\.min\.js$/.test(path)).length, 6)
 

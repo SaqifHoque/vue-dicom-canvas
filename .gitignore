@@ -39,3 +39,7 @@ test-results/
 *.zip
 !examples/basic/public/sample.dcm
 !examples/basic/public/series/slice-*.dcm
+
+# Standalone npm consumer demo
+examples/minimal/public/assets/
+!examples/minimal/public/sample.dcm
