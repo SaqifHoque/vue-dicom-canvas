@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue'
-import { DicomViewer } from '@saqif/vue-dicom-canvas'
-import '@saqif/vue-dicom-canvas/style.css'
+import { DicomViewer } from 'vue-dicom-canvas'
+import 'vue-dicom-canvas/style.css'
 
 const source = ref('/sample.dcm')
 const error = ref('')

@@ -4,7 +4,7 @@ A typed Vue 3 component for viewing DICOM images, navigating series, drawing ann
 
 Vue DICOM Canvas wraps [DWV](https://github.com/ivmartel/dwv) in a typed Vue component. Controls sit inside the image, and a gear icon shows or hides the settings panel. It supports local files, image series, and remote DICOM URLs.
 
-[npm package](https://www.npmjs.com/package/@saqif/vue-dicom-canvas) · [Source code](https://github.com/SaqifHoque/vue-dicom-canvas) · [API reference](#component-api) · [Migration guide](MIGRATION.md) · [Security policy](SECURITY.md)
+[npm package](https://www.npmjs.com/package/vue-dicom-canvas) · [Source code](https://github.com/SaqifHoque/vue-dicom-canvas) · [API reference](#component-api) · [Migration guide](MIGRATION.md) · [Security policy](SECURITY.md)
 
 
 ## Documentation & live playground
@@ -24,14 +24,16 @@ The npm archive contains the compiled component, types, styles, required decoder
 ## Installation
 
 ```sh
-npm install @saqif/vue-dicom-canvas "vue@^3.5.0" "dwv@~0.36.4"
+npm install vue-dicom-canvas "vue@^3.5.0" "dwv@~0.36.4"
 ```
+
+Upgrading from `@saqif/vue-dicom-canvas`? See the [migration guide](MIGRATION.md).
 
 Vue `>=3.5.0 <4.0.0` and DWV `>=0.36.4 <0.37.0` are peer dependencies. Import the package stylesheet and copy its workers into your application's public assets:
 
 ```sh
 mkdir -p public/assets/workers
-cp node_modules/@saqif/vue-dicom-canvas/workers/*.min.js public/assets/workers/
+cp node_modules/vue-dicom-canvas/workers/*.min.js public/assets/workers/
 ```
 
 The worker files must be served from the application's own origin. Configure the directory with `worker-base-path`, as in the quick start below.
@@ -74,8 +76,8 @@ Import both the named component and its stylesheet:
 ```vue
 <script setup lang="ts">
 import { ref } from 'vue'
-import { DicomViewer, type DicomSource, type DicomAnnotations } from '@saqif/vue-dicom-canvas'
-import '@saqif/vue-dicom-canvas/style.css'
+import { DicomViewer, type DicomSource, type DicomAnnotations } from 'vue-dicom-canvas'
+import 'vue-dicom-canvas/style.css'
 
 const source = ref<DicomSource>(null)
 const annotations = ref<DicomAnnotations | null>(null)
@@ -140,7 +142,7 @@ The package targets DWV `>=0.36.4 <0.37.0` and Vue `>=3.5.0 <4.0.0`. Copy the pa
 
 ```sh
 mkdir -p public/assets/workers
-cp node_modules/@saqif/vue-dicom-canvas/workers/*.min.js public/assets/workers/
+cp node_modules/vue-dicom-canvas/workers/*.min.js public/assets/workers/
 ```
 
 Then configure the same directory on the viewer:
@@ -271,7 +273,7 @@ Each viewer owns its DWV app, source, annotations, history, controls, request cr
 
 | Symptom | What to check |
 | --- | --- |
-| Viewer controls are unstyled | Import `@saqif/vue-dicom-canvas/style.css`. |
+| Viewer controls are unstyled | Import `vue-dicom-canvas/style.css`. |
 | A compressed image fails to load | Copy all packaged worker files and verify that `workerBasePath` serves JavaScript from the same origin; inspect `worker-error` for the resolved URL. |
 | A remote load is blocked | Check the server's CORS response and the allowed origin, headers, and credential settings. |
 | Annotation restore is rejected | Load the matching study/image first and supply a version 1 package snapshot; inspect `annotation-error` or the imperative setter's thrown error. |

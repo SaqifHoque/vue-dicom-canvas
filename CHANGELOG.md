@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.2
+
+- Prepare the first unscoped release as `vue-dicom-canvas` and document migration from the previous scoped name.
+- Update Vite, Vue, and Vue tooling to address dependency advisories.
+- Add weekly Dependabot updates and publish verified releases from GitHub Actions.
+
 ## 2.0.0 (2026-10-14)
 
 Prepared for the first registry release of `@saqif/vue-dicom-canvas`:

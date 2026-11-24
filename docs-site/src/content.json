@@ -1,6 +1,6 @@
 {
   "name": "Vue DICOM Canvas",
-  "package": "@saqif/vue-dicom-canvas",
+  "package": "vue-dicom-canvas",
   "version": "2.0.1",
   "repo": "vue-dicom-canvas",
   "tagline": "Medical imaging, embedded in Vue.",
@@ -29,7 +29,7 @@
         {
           "kind": "code",
           "lang": "bash",
-          "text": "npm install @saqif/vue-dicom-canvas vue@^3.5.0 dwv@~0.36.4"
+          "text": "npm install vue-dicom-canvas vue@^3.5.0 dwv@~0.36.4"
         },
         {
           "kind": "note",
@@ -46,7 +46,7 @@
         {
           "kind": "code",
           "lang": "bash",
-          "text": "npm install @saqif/vue-dicom-canvas \"vue@^3.5.0\" \"dwv@~0.36.4\""
+          "text": "npm install vue-dicom-canvas \"vue@^3.5.0\" \"dwv@~0.36.4\""
         },
         {
           "kind": "p",
@@ -55,7 +55,7 @@
         {
           "kind": "code",
           "lang": "javascript",
-          "text": "import { DicomViewer } from '@saqif/vue-dicom-canvas'\nimport '@saqif/vue-dicom-canvas/style.css'"
+          "text": "import { DicomViewer } from 'vue-dicom-canvas'\nimport 'vue-dicom-canvas/style.css'"
         },
         {
           "kind": "note",
@@ -89,7 +89,7 @@
         {
           "kind": "code",
           "lang": "vue",
-          "text": "<script setup>\nimport { ref } from 'vue'\nimport { DicomViewer } from '@saqif/vue-dicom-canvas'\nimport '@saqif/vue-dicom-canvas/style.css'\n\nconst source = ref(null)\nfunction openFiles(event) {\n  source.value = Array.from(event.target.files ?? [])\n}\n</script>\n\n<template>\n  <input type=\"file\" multiple accept=\".dcm\" @change=\"openFiles\">\n  <div style=\"max-width: 900px; border: 1px solid #cbd5e1\">\n    <DicomViewer :source=\"source\" height=\"560px\"\n      worker-base-path=\"/assets/workers/\" />\n  </div>\n</template>"
+          "text": "<script setup>\nimport { ref } from 'vue'\nimport { DicomViewer } from 'vue-dicom-canvas'\nimport 'vue-dicom-canvas/style.css'\n\nconst source = ref(null)\nfunction openFiles(event) {\n  source.value = Array.from(event.target.files ?? [])\n}\n</script>\n\n<template>\n  <input type=\"file\" multiple accept=\".dcm\" @change=\"openFiles\">\n  <div style=\"max-width: 900px; border: 1px solid #cbd5e1\">\n    <DicomViewer :source=\"source\" height=\"560px\"\n      worker-base-path=\"/assets/workers/\" />\n  </div>\n</template>"
         },
         {
           "kind": "p",
@@ -114,7 +114,7 @@
         {
           "kind": "code",
           "lang": "vue",
-          "text": "<script setup>\nimport { ref } from 'vue'\nimport { DicomViewer } from '@saqif/vue-dicom-canvas'\nimport '@saqif/vue-dicom-canvas/style.css'\n\nconst source = ref(null)\nfunction openFiles(event) {\n  source.value = Array.from(event.target.files ?? [])\n}\n</script>\n\n<template>\n  <input type=\"file\" multiple accept=\".dcm\" @change=\"openFiles\">\n  <div style=\"max-width: 900px; border: 1px solid #cbd5e1\">\n    <DicomViewer :source=\"source\" height=\"560px\"\n      worker-base-path=\"/assets/workers/\" />\n  </div>\n</template>"
+          "text": "<script setup>\nimport { ref } from 'vue'\nimport { DicomViewer } from 'vue-dicom-canvas'\nimport 'vue-dicom-canvas/style.css'\n\nconst source = ref(null)\nfunction openFiles(event) {\n  source.value = Array.from(event.target.files ?? [])\n}\n</script>\n\n<template>\n  <input type=\"file\" multiple accept=\".dcm\" @change=\"openFiles\">\n  <div style=\"max-width: 900px; border: 1px solid #cbd5e1\">\n    <DicomViewer :source=\"source\" height=\"560px\"\n      worker-base-path=\"/assets/workers/\" />\n  </div>\n</template>"
         }
       ]
     },
@@ -264,7 +264,7 @@
         {
           "kind": "code",
           "lang": "bash",
-          "text": "mkdir -p public/assets/workers\ncp node_modules/@saqif/vue-dicom-canvas/workers/*.min.js public/assets/workers/"
+          "text": "mkdir -p public/assets/workers\ncp node_modules/vue-dicom-canvas/workers/*.min.js public/assets/workers/"
         },
         {
           "kind": "code",
@@ -320,7 +320,7 @@
         {
           "kind": "code",
           "lang": "vue",
-          "text": "<script setup>\nimport { ref } from 'vue'\nimport { DicomViewer } from '@saqif/vue-dicom-canvas'\nimport '@saqif/vue-dicom-canvas/style.css'\nconst source = ref('/sample.dcm')\nconst annotations = ref(null)\n</script>\n<template>\n  <DicomViewer :source=\"source\" v-model:annotations=\"annotations\"\n    show-annotation-file-controls worker-base-path=\"/assets/workers/\" />\n</template>"
+          "text": "<script setup>\nimport { ref } from 'vue'\nimport { DicomViewer } from 'vue-dicom-canvas'\nimport 'vue-dicom-canvas/style.css'\nconst source = ref('/sample.dcm')\nconst annotations = ref(null)\n</script>\n<template>\n  <DicomViewer :source=\"source\" v-model:annotations=\"annotations\"\n    show-annotation-file-controls worker-base-path=\"/assets/workers/\" />\n</template>"
         },
         {
           "kind": "list",
@@ -593,7 +593,7 @@
         {
           "kind": "code",
           "lang": "typescript",
-          "text": "import type { DicomSource, DicomAnnotations,\n  DicomViewerProps, DicomLoadResult } from '@saqif/vue-dicom-canvas'\nconst source = ref<DicomSource>(null)\nconst marks = ref<DicomAnnotations | null>(null)"
+          "text": "import type { DicomSource, DicomAnnotations,\n  DicomViewerProps, DicomLoadResult } from 'vue-dicom-canvas'\nconst source = ref<DicomSource>(null)\nconst marks = ref<DicomAnnotations | null>(null)"
         },
         {
           "kind": "p",

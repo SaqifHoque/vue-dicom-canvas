@@ -1,0 +1,74 @@
+name: Publish npm package
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    uses: ./.github/workflows/ci.yml
+    with:
+      pack: true
+
+  publish:
+    needs: verify
+    if: github.repository == 'SaqifHoque/vue-dicom-canvas' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: npm-publish
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: npm-package
+      - name: Publish a new stable version
+        run: |
+          tarballs=(vue-dicom-canvas-*.tgz)
+          if [[ "${#tarballs[@]}" -ne 1 || ! -f "${tarballs[0]}" ]]; then
+            echo "Expected exactly one package tarball" >&2
+            exit 1
+          fi
+          tarball="$PWD/${tarballs[0]}"
+          if tar -xOf "$tarball" package/package.json | node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            const { name, version } = JSON.parse(readFileSync(0, "utf8"));
+            const stable = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+            if (name !== "vue-dicom-canvas" || !stable.test(version)) {
+              throw new Error("Unexpected package name or version");
+            }
+            const response = await fetch("https://registry.npmjs.org/" + name, {
+              signal: AbortSignal.timeout(30000),
+            });
+            if (response.status === 404) {
+              throw new Error("Publish the first version with an npm maintainer account, then configure Trusted publishing");
+            }
+            if (!response.ok) throw new Error("Registry check failed with " + response.status);
+            const metadata = await response.json();
+            const latest = metadata["dist-tags"]?.latest;
+            if (!metadata.versions || !stable.test(latest)) throw new Error("Invalid registry metadata");
+            if (Object.hasOwn(metadata.versions, version)) {
+              console.log(name + "@" + version + " is already published");
+              process.exit(10);
+            }
+            const previous = latest.split(".").map(Number);
+            const difference = version.split(".").map((part, i) => Number(part) - previous[i]).find(Boolean);
+            if (!(difference > 0)) throw new Error("The release version must be newer than latest");
+          '; then
+            npm publish "$tarball" --ignore-scripts --access public
+          else
+            status=$?
+            if [[ "$status" -ne 10 ]]; then exit "$status"; fi
+          fi

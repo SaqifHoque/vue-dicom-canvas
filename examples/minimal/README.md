@@ -1,6 +1,8 @@
-# Minimal @saqif/vue-dicom-canvas consumer
+# Minimal vue-dicom-canvas consumer
 
-This independent Vite app installs `@saqif/vue-dicom-canvas@2.0.1` from npm. It imports the published component and CSS, with no aliases to the library source. The component is rendered inside `div#component-container` on a plain white page.
+This independent Vite app installs `vue-dicom-canvas`. It imports the published component and CSS, with no aliases to the library source. The component is rendered inside `div#component-container` on a plain white page.
+
+The dependency uses an npm alias for the existing scoped release until the first unscoped release is available.
 
 ```sh
 cd examples/minimal
