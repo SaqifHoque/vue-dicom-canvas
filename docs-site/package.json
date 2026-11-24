@@ -14,7 +14,7 @@
     "vue-dicom-canvas": "npm:@saqif/vue-dicom-canvas@2.0.1"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "5.2.4",
+    "@vitejs/plugin-vue": "6.0.11",
     "vite": "6.4.6"
   }
 }
