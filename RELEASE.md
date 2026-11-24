@@ -6,9 +6,15 @@ existing installations. See [MIGRATION.md](MIGRATION.md) for the import changes.
 
 ## First unscoped release
 
-The first publication uses an npm maintainer account. From the reviewed `main` commit,
-run `npm ci`, `npm run check`, and `npm run verify:package`. After CI passes,
-run `npm publish --access public` and complete npm's sign-in and two-factor verification.
+The first publication uses an npm maintainer account. To publish it from GitHub
+Actions, add a short-lived npm publishing token with permission to create the
+package as the `NPM_BOOTSTRAP_TOKEN` repository secret. The publish workflow uses
+it only for version 2.0.2 when the unscoped package is absent from npm. Run
+**Publish npm package** on `main` if the initial run needs to be retried.
+After the first publish, delete the GitHub secret and revoke the token in npm.
+
+The first version can also be published from a verified release tarball with
+`npm publish ./vue-dicom-canvas-2.0.2.tgz --access public`.
 
 In the new package's npm settings under **Trusted publishing**, choose **GitHub Actions**.
 Use owner `SaqifHoque`, repository `vue-dicom-canvas`, workflow filename
