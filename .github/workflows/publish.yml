@@ -8,28 +8,28 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
 jobs:
   verify:
     uses: ./.github/workflows/ci.yml
     with:
       pack: true
 
-  publish:
+  release:
     needs: verify
     if: github.repository == 'SaqifHoque/vue-dicom-canvas' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    concurrency:
-      group: npm-publish
-      cancel-in-progress: false
-    permissions:
-      contents: read
-      id-token: write
+    outputs:
+      mode: ${{ steps.release.outputs.mode }}
+      tarball: ${{ steps.release.outputs.tarball }}
     steps:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24'
-          registry-url: https://registry.npmjs.org
           package-manager-cache: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
@@ -43,7 +43,7 @@ jobs:
             echo "Expected exactly one package tarball" >&2
             exit 1
           fi
-          tarball="$PWD/${tarballs[0]}"
+          tarball="./${tarballs[0]}"
           printf 'tarball=%s\n' "$tarball" >> "$GITHUB_OUTPUT"
           tar -xOf "$tarball" package/package.json | node --input-type=module -e '
             import { appendFileSync, readFileSync } from "node:fs";
@@ -75,19 +75,54 @@ jobs:
             if (!(difference > 0)) throw new Error("The release version must be newer than latest");
             setMode("trusted");
           '
+
+  bootstrap:
+    needs: release
+    if: needs.release.outputs.mode == 'bootstrap'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: npm-package
       - name: Publish the first unscoped release
-        if: steps.release.outputs.mode == 'bootstrap'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_BOOTSTRAP_TOKEN }}
-          PACKAGE_TARBALL: ${{ steps.release.outputs.tarball }}
+          PACKAGE_TARBALL: ${{ needs.release.outputs.tarball }}
         run: |
           if [[ -z "$NODE_AUTH_TOKEN" ]]; then
-            echo "::error::Set the NPM_BOOTSTRAP_TOKEN repository secret for the first unscoped release"
+            echo "::error::Set NPM_BOOTSTRAP_TOKEN in the npm environment for the first unscoped release"
             exit 1
           fi
           npm publish "$PACKAGE_TARBALL" --ignore-scripts --access public --provenance
+
+  publish:
+    needs: release
+    if: needs.release.outputs.mode == 'trusted'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: npm-package
       - name: Publish with npm Trusted Publishing
-        if: steps.release.outputs.mode == 'trusted'
         env:
-          PACKAGE_TARBALL: ${{ steps.release.outputs.tarball }}
+          PACKAGE_TARBALL: ${{ needs.release.outputs.tarball }}
         run: npm publish "$PACKAGE_TARBALL" --ignore-scripts --access public
