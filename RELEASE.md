@@ -8,10 +8,10 @@ existing installations. See [MIGRATION.md](MIGRATION.md) for the import changes.
 
 The first publication uses an npm maintainer account. To publish it from GitHub
 Actions, add a short-lived npm publishing token with permission to create the
-package as the `NPM_BOOTSTRAP_TOKEN` repository secret. The publish workflow uses
+package as `NPM_BOOTSTRAP_TOKEN` in the GitHub Actions `npm` environment. The publish workflow uses
 it only for version 2.0.2 when the unscoped package is absent from npm. Run
 **Publish npm package** on `main` if the initial run needs to be retried.
-After the first publish, delete the GitHub secret and revoke the token in npm.
+After the first publish, delete the environment secret and revoke the token in npm.
 
 The first version can also be published from a verified release tarball with
 `npm publish ./vue-dicom-canvas-2.0.2.tgz --access public`.
