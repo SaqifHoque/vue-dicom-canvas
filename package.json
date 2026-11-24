@@ -53,7 +53,7 @@
     "devDependencies": {
         "@playwright/test": "^1.64.0",
         "@types/node": "^22.10.0",
-        "@vitejs/plugin-vue": "^5.2.0",
+        "@vitejs/plugin-vue": "^6.0.11",
         "dwv": "^0.36.4",
         "esbuild": "^0.25.0",
         "typescript": "^5.7.0",
