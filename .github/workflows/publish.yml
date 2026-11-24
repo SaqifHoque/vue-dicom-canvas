@@ -34,7 +34,9 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: npm-package
-      - name: Publish a new stable version
+      - name: Check the release against npm
+        id: release
+        shell: bash
         run: |
           tarballs=(vue-dicom-canvas-*.tgz)
           if [[ "${#tarballs[@]}" -ne 1 || ! -f "${tarballs[0]}" ]]; then
@@ -42,8 +44,9 @@ jobs:
             exit 1
           fi
           tarball="$PWD/${tarballs[0]}"
-          if tar -xOf "$tarball" package/package.json | node --input-type=module -e '
-            import { readFileSync } from "node:fs";
+          printf 'tarball=%s\n' "$tarball" >> "$GITHUB_OUTPUT"
+          tar -xOf "$tarball" package/package.json | node --input-type=module -e '
+            import { appendFileSync, readFileSync } from "node:fs";
             const { name, version } = JSON.parse(readFileSync(0, "utf8"));
             const stable = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
             if (name !== "vue-dicom-canvas" || !stable.test(version)) {
@@ -52,8 +55,11 @@ jobs:
             const response = await fetch("https://registry.npmjs.org/" + name, {
               signal: AbortSignal.timeout(30000),
             });
+            const setMode = mode => appendFileSync(process.env.GITHUB_OUTPUT, "mode=" + mode + "\n");
             if (response.status === 404) {
-              throw new Error("Publish the first version with an npm maintainer account, then configure Trusted publishing");
+              if (version !== "2.0.2") throw new Error("Only version 2.0.2 can bootstrap this package");
+              setMode("bootstrap");
+              process.exit(0);
             }
             if (!response.ok) throw new Error("Registry check failed with " + response.status);
             const metadata = await response.json();
@@ -61,14 +67,27 @@ jobs:
             if (!metadata.versions || !stable.test(latest)) throw new Error("Invalid registry metadata");
             if (Object.hasOwn(metadata.versions, version)) {
               console.log(name + "@" + version + " is already published");
-              process.exit(10);
+              setMode("skip");
+              process.exit(0);
             }
             const previous = latest.split(".").map(Number);
             const difference = version.split(".").map((part, i) => Number(part) - previous[i]).find(Boolean);
             if (!(difference > 0)) throw new Error("The release version must be newer than latest");
-          '; then
-            npm publish "$tarball" --ignore-scripts --access public
-          else
-            status=$?
-            if [[ "$status" -ne 10 ]]; then exit "$status"; fi
+            setMode("trusted");
+          '
+      - name: Publish the first unscoped release
+        if: steps.release.outputs.mode == 'bootstrap'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_BOOTSTRAP_TOKEN }}
+          PACKAGE_TARBALL: ${{ steps.release.outputs.tarball }}
+        run: |
+          if [[ -z "$NODE_AUTH_TOKEN" ]]; then
+            echo "::error::Set the NPM_BOOTSTRAP_TOKEN repository secret for the first unscoped release"
+            exit 1
           fi
+          npm publish "$PACKAGE_TARBALL" --ignore-scripts --access public --provenance
+      - name: Publish with npm Trusted Publishing
+        if: steps.release.outputs.mode == 'trusted'
+        env:
+          PACKAGE_TARBALL: ${{ steps.release.outputs.tarball }}
+        run: npm publish "$PACKAGE_TARBALL" --ignore-scripts --access public
