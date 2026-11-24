@@ -56,7 +56,7 @@
         "@vitejs/plugin-vue": "^5.2.0",
         "dwv": "^0.36.4",
         "esbuild": "^0.25.0",
-        "typescript": "^5.7.0",
+        "typescript": "^7.0.2",
         "vite": "^6.4.6",
         "vue": "^3.5.46",
         "vue-tsc": "^3.3.14"
